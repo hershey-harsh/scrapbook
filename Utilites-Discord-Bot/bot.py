@@ -20,4 +20,16 @@ async def die_roll(ctx):
     
     await ctx.send(f'You rolled a {roll_result}!')
 
+@bot.command(name='mock')
+async def mock_text(ctx, *, text):
+    mock_text = ''.join(c.lower() if i % 2 == 0 else c.upper() for i, c in enumerate(text))
+    await ctx.send(mock_text)
+
+@bot.command(name='countdown')
+async def countdown(ctx, seconds: int):
+    for i in range(seconds, 0, -1):
+        await ctx.send(f'{i} seconds remaining...')
+        await asyncio.sleep(1)
+    await ctx.send('Countdown complete!')
+
 bot.run(TOKEN)

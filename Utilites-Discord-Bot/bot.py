@@ -20,6 +20,23 @@ async def die_roll(ctx):
     roll_result = random.randint(1, 6)
     await ctx.send(f'You rolled a {roll_result}!')
 
+@bot.command(name='mock')
+async def mock_text(ctx, *, text):
+    mock_text = ''.join(c.lower() if i % 2 == 0 else c.upper() for i, c in enumerate(text))
+    await ctx.send(mock_text)
+
+@bot.command(name='countdown')
+async def countdown(ctx, seconds: int):
+    for i in range(seconds, 0, -1):
+        await ctx.send(f'{i} seconds remaining...')
+        await asyncio.sleep(1)
+    await ctx.send('Countdown complete!')
+
+@bot.command(name='reverse')
+async def reverse(ctx, *, text: str):
+    reversed_text = text[::-1]
+    await ctx.send(f'Reversed text: {reversed_text}')
+
 @bot.command(name='weather')
 async def weather(ctx, *, city: str):
     async with aiohttp.ClientSession() as session:
@@ -67,23 +84,6 @@ async def countdown(ctx, seconds: int):
         await message.edit(content=f'{seconds} seconds remaining...')
     await ctx.send('Countdown complete!')
 
-@bot.command(name='mock')
-async def mock_text(ctx, *, text):
-    mock_text = ''.join(c.lower() if i % 2 == 0 else c.upper() for i, c in enumerate(text))
-    await ctx.send(mock_text)
-
-@bot.command(name='countdown')
-async def countdown(ctx, seconds: int):
-    for i in range(seconds, 0, -1):
-        await ctx.send(f'{i} seconds remaining...')
-        await asyncio.sleep(1)
-    await ctx.send('Countdown complete!')
-
-@bot.command(name='reverse')
-async def reverse(ctx, *, text: str):
-    reversed_text = text[::-1]
-    await ctx.send(f'Reversed text: {reversed_text}')
-
 @bot.command(name='random_user')
 async def random_user(ctx):
     members = ctx.guild.members
@@ -127,5 +127,25 @@ async def insult(ctx):
 @bot.command(name='echo')
 async def echo(ctx, *, message):
     await ctx.send(message)
+
+@bot.command(name='random_number', aliases=['rand_num'])
+async def random_number(ctx, low: int, high: int):
+    if low > high:
+        low, high = high, low
+    num = random.randint(low, high)
+    await ctx.send(f'Random number between {low} and {high}: {num}')
+
+@bot.command(name='compliment')
+async def compliment(ctx):
+    compliments = [
+        "You're amazing!",
+        "You're a star!",
+        "You're brilliant!",
+        "You're so kind!",
+        "You're beautiful inside and out!",
+        "You're doing great!"
+    ]
+    compliment = random.choice(compliments)
+    await ctx.send(compliment)
 
 bot.run(TOKEN)

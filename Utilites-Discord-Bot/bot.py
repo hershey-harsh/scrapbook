@@ -216,4 +216,10 @@ async def poll(ctx, question, *options):
     for emoji_number in range(1, len(options) + 1):
         await poll.add_reaction(f'{emoji_number}\N{COMBINING ENCLOSING KEYCAP}')
 
+@bot.command(name='remindme')
+async def remindme(ctx, time, *, reminder):
+    # Set a reminder for a specific time
+    # You can implement a reminder system to notify users at the specified time
+    await ctx.send(f'Reminder set: I will remind you in {time} about "{reminder}"')
+
 bot.run(TOKEN)

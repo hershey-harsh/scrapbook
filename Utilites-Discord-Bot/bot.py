@@ -1,5 +1,7 @@
 import discord
 import random
+import aiohttp
+import asyncio
 from discord.ext import commands
 
 TOKEN = '<redacted>'
@@ -62,5 +64,28 @@ async def say_hi(ctx):
     ]
     greeting = random.choice(greetings)
     await ctx.send(greeting)
+
+@bot.command(name='weather')
+async def weather(ctx, *, city: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f'http://api.openweathermap.org/data/2.5/weather?q={city}&appid=<redacted>') as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                description = data['weather'][0]['description']
+                temp = data['main']['temp'] - 273.15
+                await ctx.send(f'Weather in {city}: {description}, {temp:.2f}°C')
+            else:
+                await ctx.send('City not found.')
+
+@bot.command(name='translate')
+async def translate(ctx, target_language: str, *, text: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f'https://api.mymemory.translated.net/get?q={text}&langpair=en|{target_language}') as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                translated_text = data['responseData']['translatedText']
+                await ctx.send(f'Translation: {translated_text}')
+            else:
+                await ctx.send('Translation service error.')
 
 bot.run(TOKEN)

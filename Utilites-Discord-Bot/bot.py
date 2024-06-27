@@ -88,4 +88,28 @@ async def translate(ctx, target_language: str, *, text: str):
             else:
                 await ctx.send('Translation service error.')
 
+@bot.command(name='shorten')
+async def shorten(ctx, *, url: str):
+    async with aiohttp.ClientSession() as session:
+        async with session.post('https://cleanuri.com/api/v1/shorten', data={'url': url}) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                short_url = data['result_url']
+                await ctx.send(f'Shortened URL: {short_url}')
+            else:
+                await ctx.send('URL shortening service error.')
+
+@bot.command(name='countdown')
+async def countdown(ctx, seconds: int):
+    if seconds > 3600:
+        await ctx.send("The countdown cannot be longer than 1 hour.")
+        return
+
+    message = await ctx.send(f'{seconds} seconds remaining...')
+    while seconds > 0:
+        await asyncio.sleep(1)
+        seconds -= 1
+        await message.edit(content=f'{seconds} seconds remaining...')
+    await ctx.send('Countdown complete!')
+
 bot.run(TOKEN)

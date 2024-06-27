@@ -159,4 +159,28 @@ async def choose(ctx, *, choices: str):
     chosen = random.choice(options)
     await ctx.send(f'I choose: {chosen.strip()}')
 
+@bot.command(name='catfact')
+async def catfact(ctx):
+    cat_facts = [
+        "Cats have 32 muscles in each ear.",
+        "A group of cats is called a clowder.",
+        "Cats sleep for 70% of their lives.",
+        "A cat’s nose is as unique as a human’s fingerprint.",
+        "A cat can jump up to six times its length."
+    ]
+    fact = random.choice(cat_facts)
+    await ctx.send(f'Cat fact: {fact}')
+
+@bot.command(name='dogfact')
+async def dogfact(ctx):
+    dog_facts = [
+        "Dogs have a sense of time and can sense how much time has passed.",
+        "A dog's sense of smell is 10,000 times stronger than humans.",
+        "Dogs have wet noses to help absorb scent chemicals.",
+        "Dogs have three eyelids, including one to help keep their eyes moist.",
+        "Dogs have about 1,700 taste buds."
+    ]
+    fact = random.choice(dog_facts)
+    await ctx.send(f'Dog fact: {fact}')
+
 bot.run(TOKEN)

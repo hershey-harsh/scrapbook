@@ -183,4 +183,37 @@ async def dogfact(ctx):
     fact = random.choice(dog_facts)
     await ctx.send(f'Dog fact: {fact}')
 
+@bot.command(name='serverinfo')
+async def serverinfo(ctx):
+    # Send information about the current server
+    server = ctx.guild
+    total_members = len(server.members)
+    server_region = server.region
+    verification_level = server.verification_level
+    server_info = (
+        f'Server: {server.name}\n'
+        f'Members: {total_members}\n'
+        f'Region: {server_region}\n'
+        f'Verification Level: {verification_level}'
+    )
+    await ctx.send(server_info)
+
+@bot.command(name='poll')
+async def poll(ctx, question, *options):
+    # Create a poll with a question and multiple options
+    if len(options) > 10:
+        await ctx.send("I can only handle up to 10 options for a poll.")
+        return
+
+    options_str = "\n".join(f"{index + 1}. {option}" for index, option in enumerate(options))
+    poll_message = (
+        f'**Poll: {question}**\n'
+        f'React with the corresponding number to vote!\n'
+        f'{options_str}'
+    )
+    poll = await ctx.send(poll_message)
+
+    for emoji_number in range(1, len(options) + 1):
+        await poll.add_reaction(f'{emoji_number}\N{COMBINING ENCLOSING KEYCAP}')
+
 bot.run(TOKEN)

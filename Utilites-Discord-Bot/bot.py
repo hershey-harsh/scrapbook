@@ -41,4 +41,26 @@ async def random_user(ctx):
     random_member = random.choice(members)
     await ctx.send(f'A random user: {random_member.mention}')
 
+@bot.command(name='roll_dice', aliases=['dice_roll'])
+async def roll_dice(ctx, num_dice: int = 1):
+    if num_dice > 10:
+        await ctx.send("I can only roll up to 10 dice at a time!")
+        return
+
+    results = [random.randint(1, 6) for _ in range(num_dice)]
+    await ctx.send(f'You rolled: {", ".join(map(str, results))}')
+
+@bot.command(name='say_hi', aliases=['hello'])
+async def say_hi(ctx):
+    greetings = [
+        "Hello!",
+        "Hi there!",
+        "Hey!",
+        "Greetings!",
+        "Howdy!",
+        "Nice to see you!"
+    ]
+    greeting = random.choice(greetings)
+    await ctx.send(greeting)
+
 bot.run(TOKEN)

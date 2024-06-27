@@ -15,28 +15,6 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
 
-@bot.command(name='die_roll', aliases=['roll'])
-async def die_roll(ctx):
-    roll_result = random.randint(1, 6)
-    await ctx.send(f'You rolled a {roll_result}!')
-
-@bot.command(name='mock')
-async def mock_text(ctx, *, text):
-    mock_text = ''.join(c.lower() if i % 2 == 0 else c.upper() for i, c in enumerate(text))
-    await ctx.send(mock_text)
-
-@bot.command(name='countdown')
-async def countdown(ctx, seconds: int):
-    for i in range(seconds, 0, -1):
-        await ctx.send(f'{i} seconds remaining...')
-        await asyncio.sleep(1)
-    await ctx.send('Countdown complete!')
-
-@bot.command(name='reverse')
-async def reverse(ctx, *, text: str):
-    reversed_text = text[::-1]
-    await ctx.send(f'Reversed text: {reversed_text}')
-
 @bot.command(name='weather')
 async def weather(ctx, *, city: str):
     async with aiohttp.ClientSession() as session:
@@ -83,6 +61,28 @@ async def countdown(ctx, seconds: int):
         seconds -= 1
         await message.edit(content=f'{seconds} seconds remaining...')
     await ctx.send('Countdown complete!')
+
+@bot.command(name='die_roll', aliases=['roll'])
+async def die_roll(ctx):
+    roll_result = random.randint(1, 6)
+    await ctx.send(f'You rolled a {roll_result}!')
+
+@bot.command(name='mock')
+async def mock_text(ctx, *, text):
+    mock_text = ''.join(c.lower() if i % 2 == 0 else c.upper() for i, c in enumerate(text))
+    await ctx.send(mock_text)
+
+@bot.command(name='countdown')
+async def countdown(ctx, seconds: int):
+    for i in range(seconds, 0, -1):
+        await ctx.send(f'{i} seconds remaining...')
+        await asyncio.sleep(1)
+    await ctx.send('Countdown complete!')
+
+@bot.command(name='reverse')
+async def reverse(ctx, *, text: str):
+    reversed_text = text[::-1]
+    await ctx.send(f'Reversed text: {reversed_text}')
 
 @bot.command(name='random_user')
 async def random_user(ctx):
@@ -147,5 +147,16 @@ async def compliment(ctx):
     ]
     compliment = random.choice(compliments)
     await ctx.send(compliment)
+
+@bot.command(name='coin_flip')
+async def coin_flip(ctx):
+    result = random.choice(['Heads', 'Tails'])
+    await ctx.send(f'You flipped: {result}!')
+
+@bot.command(name='choose')
+async def choose(ctx, *, choices: str):
+    options = choices.split(',')
+    chosen = random.choice(options)
+    await ctx.send(f'I choose: {chosen.strip()}')
 
 bot.run(TOKEN)

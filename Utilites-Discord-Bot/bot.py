@@ -20,51 +20,6 @@ async def die_roll(ctx):
     roll_result = random.randint(1, 6)
     await ctx.send(f'You rolled a {roll_result}!')
 
-@bot.command(name='mock')
-async def mock_text(ctx, *, text):
-    mock_text = ''.join(c.lower() if i % 2 == 0 else c.upper() for i, c in enumerate(text))
-    await ctx.send(mock_text)
-
-@bot.command(name='countdown')
-async def countdown(ctx, seconds: int):
-    for i in range(seconds, 0, -1):
-        await ctx.send(f'{i} seconds remaining...')
-        await asyncio.sleep(1)
-    await ctx.send('Countdown complete!')
-
-@bot.command(name='reverse')
-async def reverse(ctx, *, text: str):
-    reversed_text = text[::-1]
-    await ctx.send(f'Reversed text: {reversed_text}')
-
-@bot.command(name='random_user')
-async def random_user(ctx):
-    members = ctx.guild.members
-    random_member = random.choice(members)
-    await ctx.send(f'A random user: {random_member.mention}')
-
-@bot.command(name='roll_dice', aliases=['dice_roll'])
-async def roll_dice(ctx, num_dice: int = 1):
-    if num_dice > 10:
-        await ctx.send("I can only roll up to 10 dice at a time!")
-        return
-
-    results = [random.randint(1, 6) for _ in range(num_dice)]
-    await ctx.send(f'You rolled: {", ".join(map(str, results))}')
-
-@bot.command(name='say_hi', aliases=['hello'])
-async def say_hi(ctx):
-    greetings = [
-        "Hello!",
-        "Hi there!",
-        "Hey!",
-        "Greetings!",
-        "Howdy!",
-        "Nice to see you!"
-    ]
-    greeting = random.choice(greetings)
-    await ctx.send(greeting)
-
 @bot.command(name='weather')
 async def weather(ctx, *, city: str):
     async with aiohttp.ClientSession() as session:
@@ -111,5 +66,66 @@ async def countdown(ctx, seconds: int):
         seconds -= 1
         await message.edit(content=f'{seconds} seconds remaining...')
     await ctx.send('Countdown complete!')
+
+@bot.command(name='mock')
+async def mock_text(ctx, *, text):
+    mock_text = ''.join(c.lower() if i % 2 == 0 else c.upper() for i, c in enumerate(text))
+    await ctx.send(mock_text)
+
+@bot.command(name='countdown')
+async def countdown(ctx, seconds: int):
+    for i in range(seconds, 0, -1):
+        await ctx.send(f'{i} seconds remaining...')
+        await asyncio.sleep(1)
+    await ctx.send('Countdown complete!')
+
+@bot.command(name='reverse')
+async def reverse(ctx, *, text: str):
+    reversed_text = text[::-1]
+    await ctx.send(f'Reversed text: {reversed_text}')
+
+@bot.command(name='random_user')
+async def random_user(ctx):
+    members = ctx.guild.members
+    random_member = random.choice(members)
+    await ctx.send(f'A random user: {random_member.mention}')
+
+@bot.command(name='roll_dice', aliases=['dice_roll'])
+async def roll_dice(ctx, num_dice: int = 1):
+    if num_dice > 10:
+        await ctx.send("I can only roll up to 10 dice at a time!")
+        return
+
+    results = [random.randint(1, 6) for _ in range(num_dice)]
+    await ctx.send(f'You rolled: {", ".join(map(str, results))}')
+
+@bot.command(name='say_hi', aliases=['hello'])
+async def say_hi(ctx):
+    greetings = [
+        "Hello!",
+        "Hi there!",
+        "Hey!",
+        "Greetings!",
+        "Howdy!",
+        "Nice to see you!"
+    ]
+    greeting = random.choice(greetings)
+    await ctx.send(greeting)
+
+@bot.command(name='insult')
+async def insult(ctx):
+    insults = [
+        "You're as bright as a black hole.",
+        "You're a sandwich short of a picnic.",
+        "If brains were dynamite, you wouldn’t have enough to blow your nose.",
+        "You're not the sharpest tool in the shed, are you?",
+        "You're the human equivalent of a participation award."
+    ]
+    insult = random.choice(insults)
+    await ctx.send(insult)
+
+@bot.command(name='echo')
+async def echo(ctx, *, message):
+    await ctx.send(message)
 
 bot.run(TOKEN)

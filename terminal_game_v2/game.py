@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox
 import pygame
 import json
+import socket
+import threading
 
 class RockPaperScissorsGame:
     def __init__(self, root):
@@ -19,6 +21,10 @@ class RockPaperScissorsGame:
         self.sound_on = True
         self.difficulty = "easy"
         self.player_stats = {"player1": {"wins": 0, "losses": 0, "ties": 0}, "player2": {"wins": 0, "losses": 0, "ties": 0}}
+        self.achievements = {"First Win": False, "First Tie": False, "Win Streak 3": False, "Loss Streak 3": False}
+        self.theme = "Light"
+        self.timer_seconds = 10
+        self.timer_running = False
 
         pygame.mixer.init()
         self.win_sound = pygame.mixer.Sound("win.wav")
@@ -46,6 +52,12 @@ class RockPaperScissorsGame:
         options_menu.add_command(label="Toggle Sound", command=self.toggle_sound)
         options_menu.add_command(label="Change Difficulty", command=self.change_difficulty)
         options_menu.add_command(label="User Settings", command=self.user_settings)
+        options_menu.add_command(label="Change Theme", command=self.change_theme)
+
+        network_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Network", menu=network_menu)
+        network_menu.add_command(label="Host Game", command=self.host_game)
+        network_menu.add_command(label="Join Game", command=self.join_game)
 
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -81,11 +93,20 @@ class RockPaperScissorsGame:
         self.stats_button = tk.Button(self.root, text="Show Player Statistics", command=self.show_statistics)
         self.stats_button.pack(pady=20)
 
+        self.achievements_button = tk.Button(self.root, text="Show Achievements", command=self.show_achievements)
+        self.achievements_button.pack(pady=20)
+
+        self.timer_label = tk.Label(self.root, text="Time Left: 10 seconds", font=("Helvetica", 14))
+        self.timer_label.pack(pady=20)
+
     def new_game(self):
         self.player1_name = simpledialog.askstring("Player 1 Name", "Enter name for Player 1:")
-        game_mode = simpledialog.askinteger("Game Mode", "Choose game mode:\n1 for single player\n2 for two players")
+        game_mode = simpledialog.askinteger("Game Mode", "Choose game mode:\n1 for single player\n2 for two players\n3 for network game")
         if game_mode == 2:
             self.player2_name = simpledialog.askstring("Player 2 Name", "Enter name for Player 2:")
+        elif game_mode == 3:
+            self.player2_name = "Network Player"
+            self.host_game()  # Automatically host a game for network mode
         else:
             self.player2_name = "Computer"
 
@@ -102,6 +123,8 @@ class RockPaperScissorsGame:
         player1_choice = self.choice_var.get()
         if self.player2_name == "Computer":
             player2_choice = self.computer_choice()
+        elif self.player2_name == "Network Player":
+            player2_choice = self.network_player_choice()  # Method to get choice from network player
         else:
             player2_choice = simpledialog.askstring("Player 2 Choice", f"{self.player2_name}, choose: rock, paper, or scissors:")
 
@@ -113,18 +136,21 @@ class RockPaperScissorsGame:
         result = self.determine_winner(player1_choice, player2_choice)
         if result == "tie":
             self.score["ties"] += 1
+            self.check_achievements("tie")
             if self.sound_on:
                 self.tie_sound.play()
         elif result == "player1":
             self.score["player1"] += 1
             self.player_stats["player1"]["wins"] += 1
             self.player_stats["player2"]["losses"] += 1
+            self.check_achievements("player1")
             if self.sound_on:
                 self.win_sound.play()
         else:
             self.score["player2"] += 1
             self.player_stats["player2"]["wins"] += 1
             self.player_stats["player1"]["losses"] += 1
+            self.check_achievements("player2")
             if self.sound_on:
                 self.lose_sound.play()
 
@@ -142,8 +168,18 @@ class RockPaperScissorsGame:
             return random.choice(["rock", "paper", "scissors"])
         elif self.difficulty == "medium":
             return random.choices(["rock", "paper", "scissors"], weights=[3, 3, 2])[0]
-        else:
-            return random.choices(["rock", "paper", "scissors"], weights=[2, 2, 1])[0]
+        elif self.difficulty == "hard":
+            # Example advanced AI strategy: favor the choice that beats the player's previous choice
+            if len(self.game_log) > 0:
+                last_player_choice = self.game_log[-1].split()[4]
+                if last_player_choice == "rock":
+                    return "paper"
+                elif last_player_choice == "paper":
+                    return "scissors"
+                else:
+                    return "rock"
+            else:
+                return random.choice(["rock", "paper", "scissors"])
 
     def determine_winner(self, player1_choice, player2_choice):
         if player1_choice == player2_choice:
@@ -171,6 +207,30 @@ class RockPaperScissorsGame:
         self.leaderboard.append({"player": winner, "wins": self.score["player1"], "losses": self.score["player2"], "ties": self.score["ties"]})
         self.leaderboard = sorted(self.leaderboard, key=lambda x: x["wins"], reverse=True)[:5]
 
+    def check_achievements(self, result):
+        if result == "player1":
+            if self.score["player1"] == 1 and not self.achievements["First Win"]:
+                self.achievements["First Win"] = True
+                messagebox.showinfo("Achievement Unlocked", "Achievement Unlocked: First Win!")
+            if self.score["player1"] >= 3 and not self.achievements["Win Streak 3"]:
+                self.achievements["Win Streak 3"] = True
+                messagebox.showinfo("Achievement Unlocked", "Achievement Unlocked: Win Streak 3!")
+        elif result == "tie":
+            if self.score["ties"] == 1 and not self.achievements["First Tie"]:
+                self.achievements["First Tie"] = True
+                messagebox.showinfo("Achievement Unlocked", "Achievement Unlocked: First Tie!")
+        elif result == "player2":
+            if self.score["player2"] >= 3 and not self.achievements["Loss Streak 3"]:
+                self.achievements["Loss Streak 3"] = True
+                messagebox.showinfo("Achievement Unlocked", "Achievement Unlocked: Loss Streak 3!")
+
+    def show_achievements(self):
+        achievements_text = "Achievements:\n"
+        for achievement, unlocked in self.achievements.items():
+            status = "Unlocked" if unlocked else "Locked"
+            achievements_text += f"{achievement}: {status}\n"
+        messagebox.showinfo("Achievements", achievements_text)
+
     def save_game(self):
         game_data = {
             "score": self.score,
@@ -182,7 +242,11 @@ class RockPaperScissorsGame:
             "rounds": self.rounds,
             "difficulty": self.difficulty,
             "player_stats": self.player_stats,
-            "sound_on": self.sound_on
+            "sound_on": self.sound_on,
+            "achievements": self.achievements,
+            "theme": self.theme,
+            "timer_seconds": self.timer_seconds,
+            "timer_running": self.timer_running
         }
         with open("game_save.json", "w") as file:
             json.dump(game_data, file)
@@ -202,6 +266,10 @@ class RockPaperScissorsGame:
             self.difficulty = game_data["difficulty"]
             self.player_stats = game_data["player_stats"]
             self.sound_on = game_data["sound_on"]
+            self.achievements = game_data["achievements"]
+            self.theme = game_data["theme"]
+            self.timer_seconds = game_data["timer_seconds"]
+            self.timer_running = game_data["timer_running"]
             self.update_score_label()
             messagebox.showinfo("Game Loaded", "Game has been loaded successfully.")
         except FileNotFoundError:
@@ -250,16 +318,84 @@ class RockPaperScissorsGame:
         self.player1_name = simpledialog.askstring("Player 1 Name", "Enter name for Player 1:", initialvalue=self.player1_name)
         self.player2_name = simpledialog.askstring("Player 2 Name", "Enter name for Player 2:", initialvalue=self.player2_name)
 
+    def change_theme(self):
+        self.theme = simpledialog.askstring("Change Theme", "Choose theme (Light, Dark):")
+        if self.theme not in ["Light", "Dark"]:
+            self.theme = "Light"
+            messagebox.showwarning("Invalid Theme", "Invalid theme. Setting to Light.")
+        self.apply_theme()
+
+    def apply_theme(self):
+        if self.theme == "Light":
+            self.root.config(bg="white")
+            self.label.config(bg="white", fg="black")
+            self.score_label.config(bg="white", fg="black")
+            self.timer_label.config(bg="white", fg="black")
+        else:
+            self.root.config(bg="black")
+            self.label.config(bg="black", fg="white")
+            self.score_label.config(bg="black", fg="white")
+            self.timer_label.config(bg="black", fg="white")
+
+    def start_timer(self):
+        self.timer_running = True
+        self.timer_seconds = 10
+        self.update_timer()
+
+    def update_timer(self):
+        if self.timer_running:
+            self.timer_seconds -= 1
+            self.timer_label.config(text=f"Time Left: {self.timer_seconds} seconds")
+            if self.timer_seconds <= 0:
+                self.timer_running = False
+                self.play_round()
+            else:
+                self.root.after(1000, self.update_timer)
+
+    def host_game(self):
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.bind(('localhost', 12345))
+        self.server.listen(1)
+        threading.Thread(target=self.accept_connection).start()
+        messagebox.showinfo("Host Game", "Hosting game on port 12345. Waiting for players to join...")
+
+    def accept_connection(self):
+        self.connection, addr = self.server.accept()
+        messagebox.showinfo("Player Joined", f"Player joined from {addr}")
+        threading.Thread(target=self.receive_data).start()
+
+    def join_game(self):
+        self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        host = simpledialog.askstring("Join Game", "Enter host IP address:")
+        self.connection.connect((host, 12345))
+        threading.Thread(target=self.receive_data).start()
+        messagebox.showinfo("Join Game", "Joined game successfully.")
+
+    def send_data(self, data):
+        self.connection.sendall(data.encode('utf-8'))
+
+    def receive_data(self):
+        while True:
+            data = self.connection.recv(1024).decode('utf-8')
+            if data:
+                self.handle_network_data(data)
+
+    def handle_network_data(self, data):
+        if data.startswith("choice:"):
+            self.network_player_choice = data.split(":")[1]
+
+    def network_player_choice(self):
+        self.send_data(f"choice:{self.choice_var.get()}")
+        return self.network_player_choice
+
     def show_about(self):
-        messagebox.showinfo("About", "Rock, Paper, Scissors Game\nVersion 1.0\nCreated by ChatGPT")
+        messagebox.showinfo("About", "Rock, Paper, Scissors Game\nVersion 1.0\nDeveloped by OpenAI")
 
     def animate_choices(self, player1_choice, player2_choice):
-        anim_text = f"{self.player1_name} chose {player1_choice}, {self.player2_name} chose {player2_choice}..."
-        anim_label = tk.Label(self.root, text=anim_text, font=("Helvetica", 12))
-        anim_label.pack(pady=10)
+        animation_text = f"{self.player1_name} chose {player1_choice}, {self.player2_name} chose {player2_choice}"
+        self.label.config(text=animation_text)
         self.root.update()
-        time.sleep(1)
-        anim_label.destroy()
+        time.sleep(1)  # Add delay to show choices before displaying result
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -61,6 +61,9 @@ def play_game(profile, game_mode):
                 update_leaderboard(profile['name'], score, elapsed_time, level, game_mode)
                 profile["level"] += 1
                 profile["hints"] += 1 if hints_used == 0 else 0
+                profile["stats"]["games_played"] += 1
+                profile["stats"]["total_score"] += score
+                profile["stats"]["average_score"] = profile["stats"]["total_score"] / profile["stats"]["games_played"]
                 check_achievements(profile, attempts, elapsed_time)
                 save_profiles(profiles)
                 break
@@ -103,7 +106,17 @@ def check_achievements(profile, attempts, elapsed_time):
     if elapsed_time < 10:
         achievements.append("Quick Guess!")
         print("Achievement unlocked: Quick Guess!")
+    if profile["level"] == 10:
+        achievements.append("Level 10!")
+        print("Achievement unlocked: Level 10!")
     profile["achievements"] = achievements
+
+def display_stats(profile):
+    stats = profile["stats"]
+    print("\n--- Player Statistics ---")
+    print(f"Total Games Played: {stats['games_played']}")
+    print(f"Total Score: {stats['total_score']}")
+    print(f"Average Score: {stats['average_score']:.2f}")
 
 def main():
     profiles = load_profiles()
@@ -112,11 +125,11 @@ def main():
         profile = profiles[name]
         print(f"Welcome back, {name}! Resuming from level {profile['level']} with {profile['hints']} hints.")
     else:
-        profile = {"name": name, "level": 1, "hints": 1, "achievements": [], "settings": {"sound": True}}
+        profile = {"name": name, "level": 1, "hints": 1, "achievements": [], "stats": {"games_played": 0, "total_score": 0, "average_score": 0}, "settings": {"sound": True, "theme": "default"}}
         profiles[name] = profile
 
     while True:
-        print("\n1. Play Normal Mode\n2. Play Timed Mode\n3. Play Limited Guess Mode\n4. Settings\n5. Exit")
+        print("\n1. Play Normal Mode\n2. Play Timed Mode\n3. Play Limited Guess Mode\n4. Display Statistics\n5. Settings\n6. Exit")
         choice = input("Choose an option: ")
         if choice == '1':
             play_game(profile, "normal")
@@ -125,9 +138,11 @@ def main():
         elif choice == '3':
             play_game(profile, "limited")
         elif choice == '4':
+            display_stats(profile)
+        elif choice == '5':
             profile["settings"]["sound"] = not profile["settings"]["sound"]
             print(f"Sound effects {'enabled' if profile['settings']['sound'] else 'disabled'}.")
-        elif choice == '5':
+        elif choice == '6':
             save_profiles(profiles)
             print("Thanks for playing! Your progress has been saved. Goodbye!")
             break

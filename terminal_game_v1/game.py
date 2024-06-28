@@ -11,9 +11,11 @@ class RockPaperScissorsGame:
         self.score = {"player1": 0, "player2": 0, "ties": 0}
         self.high_scores = []
         self.leaderboard = []
+        self.game_log = []
         self.player1_name = ""
         self.player2_name = "Computer"
         self.rounds = 0
+        self.sound_on = True
 
         pygame.mixer.init()
         self.win_sound = pygame.mixer.Sound("win.wav")
@@ -33,6 +35,10 @@ class RockPaperScissorsGame:
         game_menu.add_command(label="Reset Leaderboard", command=self.reset_leaderboard)
         game_menu.add_separator()
         game_menu.add_command(label="Exit", command=self.root.quit)
+
+        options_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Options", menu=options_menu)
+        options_menu.add_command(label="Toggle Sound", command=self.toggle_sound)
 
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -62,6 +68,9 @@ class RockPaperScissorsGame:
         self.leaderboard_button = tk.Button(self.root, text="Show Leaderboard", command=self.show_leaderboard)
         self.leaderboard_button.pack(pady=20)
 
+        self.log_button = tk.Button(self.root, text="Show Game Log", command=self.show_game_log)
+        self.log_button.pack(pady=20)
+
     def new_game(self):
         self.player1_name = simpledialog.askstring("Player 1 Name", "Enter name for Player 1:")
         game_mode = simpledialog.askinteger("Game Mode", "Choose game mode:\n1 for single player\n2 for two players")
@@ -72,6 +81,7 @@ class RockPaperScissorsGame:
 
         self.rounds = simpledialog.askinteger("Rounds", "Choose number of rounds (3, 5, 7):")
         self.score = {"player1": 0, "player2": 0, "ties": 0}
+        self.game_log = []
         self.update_score_label()
 
     def play_round(self):
@@ -90,14 +100,18 @@ class RockPaperScissorsGame:
         result = self.determine_winner(player1_choice, player2_choice)
         if result == "tie":
             self.score["ties"] += 1
-            self.tie_sound.play()
+            if self.sound_on:
+                self.tie_sound.play()
         elif result == "player1":
             self.score["player1"] += 1
-            self.win_sound.play()
+            if self.sound_on:
+                self.win_sound.play()
         else:
             self.score["player2"] += 1
-            self.lose_sound.play()
+            if self.sound_on:
+                self.lose_sound.play()
 
+        self.game_log.append(f"Round {len(self.game_log) + 1}: {self.player1_name} chose {player1_choice}, {self.player2_name} chose {player2_choice} - {result.upper()}!")
         self.update_score_label()
 
         if self.score["player1"] > self.rounds // 2 or self.score["player2"] > self.rounds // 2:
@@ -145,8 +159,14 @@ class RockPaperScissorsGame:
             leaderboard_text += f"Player: {lb['player']} - Wins: {lb['wins']}, Losses: {lb['losses']}, Ties: {lb['ties']}\n"
         messagebox.showinfo("Leaderboard", leaderboard_text)
 
+    def show_game_log(self):
+        log_text = "Game Log:\n"
+        for log_entry in self.game_log:
+            log_text += f"{log_entry}\n"
+        messagebox.showinfo("Game Log", log_text)
+
     def show_about(self):
-        messagebox.showinfo("About", "Rock, Paper, Scissors Game\nVersion 1.0")
+        messagebox.showinfo("About", "Rock, Paper, Scissors Game\nVersion 1.1")
 
     def animate_choices(self, player1_choice, player2_choice):
         # Dummy animation function, just to show the concept
@@ -156,6 +176,11 @@ class RockPaperScissorsGame:
         self.root.update()
         time.sleep(1)
         anim_label.destroy()
+
+    def toggle_sound(self):
+        self.sound_on = not self.sound_on
+        status = "on" if self.sound_on else "off"
+        messagebox.showinfo("Toggle Sound", f"Sound has been turned {status}.")
 
 if __name__ == "__main__":
     root = tk.Tk()

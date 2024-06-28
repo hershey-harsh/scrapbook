@@ -34,6 +34,8 @@ class RockPaperScissorsGame:
         self.lose_sound = pygame.mixer.Sound("lose.wav")
         self.tie_sound = pygame.mixer.Sound("tie.wav")
 
+        self.load_settings()  # Load user settings on startup
+
         self.create_menu()
         self.create_widgets()
 
@@ -95,6 +97,9 @@ class RockPaperScissorsGame:
 
         self.game_log_button = tk.Button(self.root, text="Show Game Log", command=self.show_game_log)
         self.game_log_button.pack(pady=10)
+
+        self.stats_button = tk.Button(self.root, text="Show Statistics", command=self.show_statistics)
+        self.stats_button.pack(pady=10)
 
     def new_game(self):
         self.player1_name = simpledialog.askstring("Player 1 Name", "Enter name for Player 1:")
@@ -190,6 +195,7 @@ class RockPaperScissorsGame:
         self.leaderboard = sorted(self.leaderboard, key=lambda x: x["wins"], reverse=True)[:5]
 
     def reset_leaderboard(self):
+        self.high_scores = []
         self.leaderboard = []
         messagebox.showinfo("Reset Leaderboard", "Leaderboard has been reset.")
 
@@ -209,7 +215,6 @@ class RockPaperScissorsGame:
         messagebox.showinfo("About", "Rock, Paper, Scissors Game\nVersion 1.0\nCreated by ChatGPT")
 
     def animate_choices(self, player1_choice, player2_choice):
-        # Dummy animation function, just to show the concept
         anim_text = f"{self.player1_name} chose {player1_choice}, {self.player2_name} chose {player2_choice}..."
         anim_label = tk.Label(self.root, text=anim_text, font=("Helvetica", 12))
         anim_label.pack(pady=10)
@@ -270,12 +275,13 @@ class RockPaperScissorsGame:
             messagebox.showwarning("Invalid Difficulty", "Invalid difficulty setting.")
 
     def user_settings(self):
-        settings = simpledialog.askstring("User Settings", "Enter your settings (comma separated):")
+        settings = simpledialog.askstring("User Settings", "Enter your settings (theme, sound) separated by comma:")
         if settings:
             settings_list = settings.split(",")
             if len(settings_list) == 2:
                 self.theme = settings_list[0].strip()
                 self.sound_on = settings_list[1].strip().lower() == "on"
+                self.save_settings()
                 messagebox.showinfo("User Settings Updated", f"Theme set to {self.theme}, Sound {'On' if self.sound_on else 'Off'}.")
             else:
                 messagebox.showwarning("Invalid Settings", "Please enter two settings (theme, sound).")
@@ -285,17 +291,39 @@ class RockPaperScissorsGame:
         theme = simpledialog.askstring("Change Theme", f"Choose new theme: {', '.join(themes)}")
         if theme in themes:
             self.theme = theme
+            self.save_settings()
             messagebox.showinfo("Theme Changed", f"Theme set to {theme}.")
         else:
             messagebox.showwarning("Invalid Theme", "Invalid theme selection.")
 
     def toggle_sound(self):
         self.sound_on = not self.sound_on
+        self.save_settings()
         messagebox.showinfo("Sound Toggled", f"Sound {'On' if self.sound_on else 'Off'}.")
+
+    def save_settings(self):
+        settings = {"theme": self.theme, "sound_on": self.sound_on}
+        with open("settings.json", "w") as f:
+            json.dump(settings, f)
+
+    def load_settings(self):
+        try:
+            with open("settings.json", "r") as f:
+                settings = json.load(f)
+                self.theme = settings.get("theme", "Light")
+                self.sound_on = settings.get("sound_on", True)
+        except FileNotFoundError:
+            print("No settings file found. Using default settings.")
 
     def show_game_log(self):
         game_log_text = "\n".join(self.game_log)
         messagebox.showinfo("Game Log", game_log_text)
+
+    def show_statistics(self):
+        stats_text = "Game Statistics:\n"
+        stats_text += f"{self.player1_name}: Wins - {self.player_stats['player1']['wins']}, Losses - {self.player_stats['player1']['losses']}, Ties - {self.player_stats['player1']['ties']}\n"
+        stats_text += f"{self.player2_name}: Wins - {self.player_stats['player2']['wins']}, Losses - {self.player_stats['player2']['losses']}, Ties - {self.player_stats['player2']['ties']}"
+        messagebox.showinfo("Game Statistics", stats_text)
 
     def send_chat(self):
         message = self.chat_entry.get()
@@ -320,6 +348,7 @@ class RockPaperScissorsGame:
                     conn.sendall(data)
 
     def network_game(self):
+        threading.Thread(target=self.receive_chat).start()
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect(('127.0.0.1', 65432))
         with s:
@@ -330,14 +359,6 @@ class RockPaperScissorsGame:
     def show_about(self):
         messagebox.showinfo("About", "Rock, Paper, Scissors Game\nVersion 1.0\nCreated by ChatGPT")
 
-    def animate_choices(self, player1_choice, player2_choice):
-        # Dummy animation function, just to show the concept
-        anim_text = f"{self.player1_name} chose {player1_choice}, {self.player2_name} chose {player2_choice}..."
-        anim_label = tk.Label(self.root, text=anim_text, font=("Helvetica", 12))
-        anim_label.pack(pady=10)
-        self.root.update()
-        time.sleep(1)
-        anim_label.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()

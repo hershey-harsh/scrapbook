@@ -2,9 +2,11 @@ import random
 import time
 import os
 import json
+from datetime import datetime
 
 profile_file = "profiles.json"
 leaderboard_file = "leaderboard.txt"
+daily_challenge_file = "daily_challenge.json"
 
 def load_profiles():
     if os.path.exists(profile_file):
@@ -16,6 +18,19 @@ def save_profiles(profiles):
     with open(profile_file, "w") as file:
         json.dump(profiles, file)
 
+def load_daily_challenge():
+    if os.path.exists(daily_challenge_file):
+        with open(daily_challenge_file, "r") as file:
+            return json.load(file)
+    else:
+        daily_challenge = {"date": "", "number": 0}
+        save_daily_challenge(daily_challenge)
+        return daily_challenge
+
+def save_daily_challenge(daily_challenge):
+    with open(daily_challenge_file, "w") as file:
+        json.dump(daily_challenge, file)
+
 def set_difficulty(level):
     if level == 1:
         return 1, 50, 10
@@ -26,17 +41,30 @@ def set_difficulty(level):
     else:
         return 1, 300, 3
 
+def generate_daily_challenge():
+    daily_challenge = load_daily_challenge()
+    today = datetime.today().strftime('%Y-%m-%d')
+    if daily_challenge["date"] != today:
+        daily_challenge["date"] = today
+        daily_challenge["number"] = random.randint(1, 100)
+        save_daily_challenge(daily_challenge)
+    return daily_challenge["number"]
+
 def play_game(profile, game_mode):
-    level = profile.get("level", 1)
-    hints = profile.get("hints", 1)
-    low, high, max_attempts = set_difficulty(level)
-    number_to_guess = random.randint(low, high)
+    if game_mode == "daily":
+        number_to_guess = generate_daily_challenge()
+        low, high, max_attempts = 1, 100, 10
+        print("Welcome to the Daily Challenge! I've selected a number between 1 and 100. Can you guess what it is?")
+    else:
+        level = profile.get("level", 1)
+        hints = profile.get("hints", 1)
+        low, high, max_attempts = set_difficulty(level)
+        number_to_guess = random.randint(low, high)
+        print(f"Welcome to 'Guess the Number' Level {level}! I've selected a number between {low} and {high}. Can you guess what it is?")
+    
     attempts = 0
     score = 100
     hints_used = 0
-
-    print(f"Welcome to 'Guess the Number' Level {level}! I've selected a number between {low} and {high}. Can you guess what it is?")
-    
     start_time = time.time()
 
     while attempts < max_attempts:
@@ -58,14 +86,15 @@ def play_game(profile, game_mode):
                 print(f"Congratulations! You've guessed the number in {attempts} attempts with a score of {score} and time of {elapsed_time:.2f} seconds.")
                 if profile["settings"]["sound"]:
                     os.system('play -nq -t alsa synth 0.1 sine 880')
-                update_leaderboard(profile['name'], score, elapsed_time, level, game_mode)
-                profile["level"] += 1
-                profile["hints"] += 1 if hints_used == 0 else 0
-                profile["stats"]["games_played"] += 1
-                profile["stats"]["total_score"] += score
-                profile["stats"]["average_score"] = profile["stats"]["total_score"] / profile["stats"]["games_played"]
-                check_achievements(profile, attempts, elapsed_time)
-                save_profiles(profiles)
+                if game_mode != "daily":
+                    update_leaderboard(profile['name'], score, elapsed_time, profile['level'], game_mode)
+                    profile["level"] += 1
+                    profile["hints"] += 1 if hints_used == 0 else 0
+                    profile["stats"]["games_played"] += 1
+                    profile["stats"]["total_score"] += score
+                    profile["stats"]["average_score"] = profile["stats"]["total_score"] / profile["stats"]["games_played"]
+                    check_achievements(profile, attempts, elapsed_time)
+                    save_profiles(profiles)
                 break
 
             if attempts == max_attempts // 2 and hints > 0:
@@ -109,7 +138,10 @@ def check_achievements(profile, attempts, elapsed_time):
     if profile["level"] == 10:
         achievements.append("Level 10!")
         print("Achievement unlocked: Level 10!")
-    profile["achievements"] = achievements
+    if profile["stats"]["total_score"] >= 1000:
+        achievements.append("Score 1000!")
+        print("Achievement unlocked: Score 1000!")
+    profile["achievements"] = list(set(achievements))
 
 def display_stats(profile):
     stats = profile["stats"]
@@ -117,6 +149,15 @@ def display_stats(profile):
     print(f"Total Games Played: {stats['games_played']}")
     print(f"Total Score: {stats['total_score']}")
     print(f"Average Score: {stats['average_score']:.2f}")
+
+def display_achievements(profile):
+    achievements = profile.get("achievements", [])
+    if achievements:
+        print("\n--- Achievements ---")
+        for achievement in achievements:
+            print(f"- {achievement}")
+    else:
+        print("No achievements yet. Keep playing to unlock them!")
 
 def main():
     profiles = load_profiles()
@@ -129,7 +170,7 @@ def main():
         profiles[name] = profile
 
     while True:
-        print("\n1. Play Normal Mode\n2. Play Timed Mode\n3. Play Limited Guess Mode\n4. Display Statistics\n5. Settings\n6. Exit")
+        print("\n1. Play Normal Mode\n2. Play Timed Mode\n3. Play Limited Guess Mode\n4. Play Daily Challenge\n5. Display Statistics\n6. Display Achievements\n7. Settings\n8. Exit")
         choice = input("Choose an option: ")
         if choice == '1':
             play_game(profile, "normal")
@@ -138,11 +179,15 @@ def main():
         elif choice == '3':
             play_game(profile, "limited")
         elif choice == '4':
-            display_stats(profile)
+            play_game(profile, "daily")
         elif choice == '5':
+            display_stats(profile)
+        elif choice == '6':
+            display_achievements(profile)
+        elif choice == '7':
             profile["settings"]["sound"] = not profile["settings"]["sound"]
             print(f"Sound effects {'enabled' if profile['settings']['sound'] else 'disabled'}.")
-        elif choice == '6':
+        elif choice == '8':
             save_profiles(profiles)
             print("Thanks for playing! Your progress has been saved. Goodbye!")
             break

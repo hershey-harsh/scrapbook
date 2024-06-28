@@ -46,6 +46,8 @@ class RockPaperScissorsGame:
         game_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Game", menu=game_menu)
         game_menu.add_command(label="New Game", command=self.new_game)
+        game_menu.add_command(label="Save Game", command=self.save_game)
+        game_menu.add_command(label="Load Game", command=self.load_game)
         game_menu.add_command(label="Reset Leaderboard", command=self.reset_leaderboard)
         game_menu.add_separator()
         game_menu.add_command(label="Exit", command=self.root.quit)
@@ -60,6 +62,7 @@ class RockPaperScissorsGame:
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="About", command=self.show_about)
+        help_menu.add_command(label="Tutorial", command=self.show_tutorial)
 
     def create_widgets(self):
         self.label = tk.Label(self.root, text="Welcome to Rock, Paper, Scissors!", font=("Helvetica", 16))
@@ -359,6 +362,51 @@ class RockPaperScissorsGame:
     def show_about(self):
         messagebox.showinfo("About", "Rock, Paper, Scissors Game\nVersion 1.0\nCreated by ChatGPT")
 
+    def save_game(self):
+        save_data = {
+            "player1_name": self.player1_name,
+            "player2_name": self.player2_name,
+            "rounds": self.rounds,
+            "score": self.score,
+            "high_scores": self.high_scores,
+            "leaderboard": self.leaderboard,
+            "player_stats": self.player_stats,
+            "theme": self.theme,
+            "sound_on": self.sound_on
+        }
+        with open("save_game.json", "w") as f:
+            json.dump(save_data, f)
+        messagebox.showinfo("Save Game", "Game saved successfully.")
+
+    def load_game(self):
+        try:
+            with open("save_game.json", "r") as f:
+                save_data = json.load(f)
+                self.player1_name = save_data["player1_name"]
+                self.player2_name = save_data["player2_name"]
+                self.rounds = save_data["rounds"]
+                self.score = save_data["score"]
+                self.high_scores = save_data["high_scores"]
+                self.leaderboard = save_data["leaderboard"]
+                self.player_stats = save_data["player_stats"]
+                self.theme = save_data["theme"]
+                self.sound_on = save_data["sound_on"]
+                self.update_score_label()
+                messagebox.showinfo("Load Game", "Game loaded successfully.")
+        except FileNotFoundError:
+            messagebox.showwarning("Load Game", "No saved game found.")
+
+    def show_tutorial(self):
+        tutorial_text = "Welcome to the Rock, Paper, Scissors Game Tutorial!\n\n"
+        tutorial_text += "Rules:\n"
+        tutorial_text += "Rock beats Scissors\n"
+        tutorial_text += "Scissors beats Paper\n"
+        tutorial_text += "Paper beats Rock\n\n"
+        tutorial_text += "Choose your move and click Play to see who wins!\n\n"
+        tutorial_text += "You can play against the computer or another player.\n"
+        tutorial_text += "Achievements will be unlocked based on your performance.\n"
+        tutorial_text += "Check out the high scores and leaderboard to see how you rank!\n"
+        messagebox.showinfo("Tutorial", tutorial_text)
 
 if __name__ == "__main__":
     root = tk.Tk()

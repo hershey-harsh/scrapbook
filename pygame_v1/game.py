@@ -15,6 +15,7 @@ BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 PURPLE = (128, 0, 128)
 BROWN = (139, 69, 19)
+ORANGE = (255, 165, 0)
 
 player_size = 50
 player_pos = [width // 2, height - 2 * player_size]
@@ -27,6 +28,7 @@ health_potion_size = 30
 trap_size = 40
 treasure_size = 40
 obstacle_size = 60
+bullet_size = 10
 
 speed = 10
 initial_enemy_speed = 5
@@ -39,6 +41,7 @@ initial_health_potion_speed = 5
 health_potion_speed = initial_health_potion_speed
 trap_speed = 3
 treasure_speed = 3
+bullet_speed = 15
 player_health = 100
 score = 0
 level = 1
@@ -48,6 +51,7 @@ powerups = []
 health_potions = []
 traps = []
 treasures = []
+bullets = []
 obstacles = [[100, 200], [300, 400], [500, 100]]
 companion_follow = True
 
@@ -57,6 +61,7 @@ health_potion_sound = pygame.mixer.Sound('health_potion.wav')
 boss_sound = pygame.mixer.Sound('boss.wav')
 trap_sound = pygame.mixer.Sound('trap.wav')
 treasure_sound = pygame.mixer.Sound('treasure.wav')
+shoot_sound = pygame.mixer.Sound('shoot.wav')
 
 font = pygame.font.SysFont("monospace", 35)
 small_font = pygame.font.SysFont("monospace", 25)
@@ -119,6 +124,11 @@ def create_treasure():
     treasure_pos = [random.randint(0, width - treasure_size), 0]
     treasures.append(treasure_pos)
 
+def create_bullet():
+    bullet_pos = [player_pos[0] + player_size // 2 - bullet_size // 2, player_pos[1]]
+    bullets.append(bullet_pos)
+    shoot_sound.play()
+
 def game_over_screen():
     window.fill(BLACK)
     game_over_text = font.render("Game Over!", True, RED)
@@ -147,6 +157,8 @@ while not game_over:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_p:
                 paused = not paused
+            if event.key == pygame.K_SPACE:
+                create_bullet()
 
     if not paused:
         keys = pygame.key.get_pressed()
@@ -159,8 +171,6 @@ while not game_over:
             player_pos[1] -= speed
         if keys[pygame.K_DOWN] and player_pos[1] < height - player_size:
             player_pos[1] += speed
-        if keys[pygame.K_SPACE]:
-            pass
 
         if companion_follow:
             companion_pos[0] = player_pos[0]
@@ -201,6 +211,11 @@ while not game_over:
                 treasure_pos[1] = 0
                 treasure_pos[0] = random.randint(0, width - treasure_size)
 
+        for bullet_pos in bullets:
+            bullet_pos[1] -= bullet_speed
+            if bullet_pos[1] < 0:
+                bullets.remove(bullet_pos)
+
         window.fill(BLACK)
 
         if any(detect_collision(player_pos, enemy_pos, enemy_size) for enemy_pos in enemies):
@@ -227,6 +242,23 @@ while not game_over:
             player_health, score = update_health_and_score(player_health, score, "treasure")
             create_treasure()
 
+        for bullet_pos in bullets:
+            for enemy_pos in enemies:
+                if detect_collision(bullet_pos, enemy_pos, bullet_size):
+                    enemies.remove(enemy_pos)
+                    bullets.remove(bullet_pos)
+                    create_enemy()
+                    score += 5
+                    break
+
+            for boss_pos in bosses:
+                if detect_collision(bullet_pos, boss_pos, bullet_size):
+                    bosses.remove(boss_pos)
+                    bullets.remove(bullet_pos)
+                    create_boss()
+                    score += 20
+                    break
+
         player = pygame.draw.rect(window, BLUE, (player_pos[0], player_pos[1], player_size, player_size))
         companion = pygame.draw.rect(window, YELLOW, (companion_pos[0], companion_pos[1], companion_size, companion_size))
 
@@ -250,6 +282,9 @@ while not game_over:
 
         for obstacle_pos in obstacles:
             pygame.draw.rect(window, WHITE, (obstacle_pos[0], obstacle_pos[1], obstacle_size, obstacle_size))
+
+        for bullet_pos in bullets:
+            pygame.draw.rect(window, ORANGE, (bullet_pos[0], bullet_pos[1], bullet_size, bullet_size))
 
         health_text = font.render("Health: {}".format(player_health), True, WHITE)
         window.blit(health_text, (10, 10))

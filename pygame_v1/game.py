@@ -18,6 +18,12 @@ BROWN = (139, 69, 19)
 ORANGE = (255, 165, 0)
 CYAN = (0, 255, 255)
 
+background_images = [
+    pygame.image.load('background1.jpg'),
+    pygame.image.load('background2.jpg'),
+    pygame.image.load('background3.jpg')
+]
+
 player_size = 50
 player_pos = [width // 2, height - 2 * player_size]
 companion_size = 30
@@ -50,6 +56,8 @@ player_health = 100
 shield_duration = 300
 score = 0
 level = 1
+lives = 3
+score_multiplier = 1
 shield_active = False
 shield_timer = 0
 enemies = []
@@ -89,17 +97,19 @@ def detect_collision(player_pos, obj_pos, obj_size):
     return False
 
 def update_health_and_score(player_health, score, collision_type):
-    global shield_active
+    global shield_active, score_multiplier
     if collision_type == "enemy":
         if not shield_active:
             player_health -= 10
+            score_multiplier = 1
             collision_sound.play()
     elif collision_type == "boss":
         if not shield_active:
             player_health -= 30
+            score_multiplier = 1
             boss_sound.play()
     elif collision_type == "powerup":
-        score += 10
+        score += 10 * score_multiplier
         powerup_sound.play()
     elif collision_type == "health_potion":
         player_health += 20
@@ -109,9 +119,10 @@ def update_health_and_score(player_health, score, collision_type):
     elif collision_type == "trap":
         if not shield_active:
             player_health -= 20
+            score_multiplier = 1
             trap_sound.play()
     elif collision_type == "treasure":
-        score += 50
+        score += 50 * score_multiplier
         treasure_sound.play()
     elif collision_type == "shield":
         shield_active = True
@@ -160,6 +171,15 @@ def create_companion_bullet():
     companion_bullet_pos = [companion_pos[0] + companion_size // 2 - bullet_size // 2, companion_pos[1]]
     companion_bullets.append(companion_bullet_pos)
     shoot_sound.play()
+
+def random_event():
+    event_type = random.choice(['meteor_shower', 'powerup_rain'])
+    if event_type == 'meteor_shower':
+        for _ in range(5):
+            create_enemy()
+    elif event_type == 'powerup_rain':
+        for _ in range(5):
+            create_powerup()
 
 def game_over_screen():
     window.fill(BLACK)
@@ -213,7 +233,6 @@ while not game_over:
             if enemy_pos[1] >= height:
                 enemy_pos[1] = 0
                 enemy_pos[0] = random.randint(0, width - enemy_size)
-            if random.randint(0, 100) < 10:
                 create_enemy_bullet(enemy_pos)
 
         for boss_pos in bosses:
@@ -221,7 +240,6 @@ while not game_over:
             if boss_pos[1] >= height:
                 boss_pos[1] = 0
                 boss_pos[0] = random.randint(0, width - boss_size)
-            if random.randint(0, 100) < 20:
                 create_enemy_bullet(boss_pos)
 
         for powerup_pos in powerups:
@@ -268,7 +286,7 @@ while not game_over:
             if shield_timer <= 0:
                 shield_active = False
 
-        window.fill(BLACK)
+        window.blit(background_images[level - 1], (0, 0))
 
         if any(detect_collision(player_pos, enemy_pos, enemy_size) for enemy_pos in enemies):
             player_health, score = update_health_and_score(player_health, score, "enemy")
@@ -304,7 +322,8 @@ while not game_over:
                     enemies.remove(enemy_pos)
                     bullets.remove(bullet_pos)
                     create_enemy()
-                    score += 5
+                    score += 5 * score_multiplier
+                    score_multiplier += 1
                     break
 
             for boss_pos in bosses:
@@ -312,7 +331,8 @@ while not game_over:
                     bosses.remove(boss_pos)
                     bullets.remove(bullet_pos)
                     create_boss()
-                    score += 20
+                    score += 20 * score_multiplier
+                    score_multiplier += 1
                     break
 
         for enemy_bullet_pos in enemy_bullets:
@@ -326,7 +346,8 @@ while not game_over:
                     enemies.remove(enemy_pos)
                     companion_bullets.remove(companion_bullet_pos)
                     create_enemy()
-                    score += 5
+                    score += 5 * score_multiplier
+                    score_multiplier += 1
                     break
 
             for boss_pos in bosses:
@@ -334,7 +355,8 @@ while not game_over:
                     bosses.remove(boss_pos)
                     companion_bullets.remove(companion_bullet_pos)
                     create_boss()
-                    score += 20
+                    score += 20 * score_multiplier
+                    score_multiplier += 1
                     break
 
         player = pygame.draw.rect(window, BLUE, (player_pos[0], player_pos[1], player_size, player_size))
@@ -379,16 +401,42 @@ while not game_over:
         level_text = font.render("Level: {}".format(level), True, WHITE)
         window.blit(level_text, (10, 90))
 
-        if player_health <= 0:
-            game_over_screen()
+        lives_text = font.render("Lives: {}".format(lives), True, WHITE)
+        window.blit(lives_text, (10, 130))
 
-        if score > level * 50:
+        if player_health <= 0:
+            lives -= 1
+            if lives > 0:
+                player_health = 100
+                score_multiplier = 1
+                enemies.clear()
+                bosses.clear()
+                powerups.clear()
+                health_potions.clear()
+                traps.clear()
+                treasures.clear()
+                bullets.clear()
+                enemy_bullets.clear()
+                companion_bullets.clear()
+                obstacles.clear()
+                for _ in range(5):
+                    create_enemy()
+                create_powerup()
+                create_health_potion()
+                create_trap()
+                create_treasure()
+                create_shield()
+            else:
+                game_over_screen()
+
+        if score > level * 100:
             level += 1
             enemy_speed += 2
             boss_speed += 1
             powerup_speed += 1
             health_potion_speed += 1
             create_boss()
+            random_event()
 
         pygame.display.update()
         clock.tick(30)

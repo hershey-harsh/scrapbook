@@ -14,6 +14,7 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 PURPLE = (128, 0, 128)
+BROWN = (139, 69, 19)
 
 player_size = 50
 player_pos = [width // 2, height - 2 * player_size]
@@ -23,6 +24,9 @@ enemy_size = 50
 boss_size = 100
 powerup_size = 30
 health_potion_size = 30
+trap_size = 40
+treasure_size = 40
+obstacle_size = 60
 
 speed = 10
 initial_enemy_speed = 5
@@ -33,6 +37,8 @@ initial_powerup_speed = 5
 powerup_speed = initial_powerup_speed
 initial_health_potion_speed = 5
 health_potion_speed = initial_health_potion_speed
+trap_speed = 3
+treasure_speed = 3
 player_health = 100
 score = 0
 level = 1
@@ -40,12 +46,17 @@ enemies = []
 bosses = []
 powerups = []
 health_potions = []
+traps = []
+treasures = []
+obstacles = [[100, 200], [300, 400], [500, 100]]
 companion_follow = True
 
 collision_sound = pygame.mixer.Sound('collision.wav')
 powerup_sound = pygame.mixer.Sound('powerup.wav')
 health_potion_sound = pygame.mixer.Sound('health_potion.wav')
 boss_sound = pygame.mixer.Sound('boss.wav')
+trap_sound = pygame.mixer.Sound('trap.wav')
+treasure_sound = pygame.mixer.Sound('treasure.wav')
 
 font = pygame.font.SysFont("monospace", 35)
 small_font = pygame.font.SysFont("monospace", 25)
@@ -76,6 +87,12 @@ def update_health_and_score(player_health, score, collision_type):
         if player_health > 100:
             player_health = 100
         health_potion_sound.play()
+    elif collision_type == "trap":
+        player_health -= 20
+        trap_sound.play()
+    elif collision_type == "treasure":
+        score += 50
+        treasure_sound.play()
     return player_health, score
 
 def create_enemy():
@@ -94,6 +111,14 @@ def create_health_potion():
     health_potion_pos = [random.randint(0, width - health_potion_size), 0]
     health_potions.append(health_potion_pos)
 
+def create_trap():
+    trap_pos = [random.randint(0, width - trap_size), 0]
+    traps.append(trap_pos)
+
+def create_treasure():
+    treasure_pos = [random.randint(0, width - treasure_size), 0]
+    treasures.append(treasure_pos)
+
 def game_over_screen():
     window.fill(BLACK)
     game_over_text = font.render("Game Over!", True, RED)
@@ -109,6 +134,8 @@ for _ in range(5):
     create_enemy()
 create_powerup()
 create_health_potion()
+create_trap()
+create_treasure()
 
 game_over = False
 paused = False
@@ -128,6 +155,12 @@ while not game_over:
             player_pos[0] -= speed
         if keys[pygame.K_RIGHT] and player_pos[0] < width - player_size:
             player_pos[0] += speed
+        if keys[pygame.K_UP] and player_pos[1] > 0:
+            player_pos[1] -= speed
+        if keys[pygame.K_DOWN] and player_pos[1] < height - player_size:
+            player_pos[1] += speed
+        if keys[pygame.K_SPACE]:
+            pass
 
         if companion_follow:
             companion_pos[0] = player_pos[0]
@@ -156,6 +189,18 @@ while not game_over:
                 health_potion_pos[1] = 0
                 health_potion_pos[0] = random.randint(0, width - health_potion_size)
 
+        for trap_pos in traps:
+            trap_pos[1] += trap_speed
+            if trap_pos[1] >= height:
+                trap_pos[1] = 0
+                trap_pos[0] = random.randint(0, width - trap_size)
+
+        for treasure_pos in treasures:
+            treasure_pos[1] += treasure_speed
+            if treasure_pos[1] >= height:
+                treasure_pos[1] = 0
+                treasure_pos[0] = random.randint(0, width - treasure_size)
+
         window.fill(BLACK)
 
         if any(detect_collision(player_pos, enemy_pos, enemy_size) for enemy_pos in enemies):
@@ -174,6 +219,14 @@ while not game_over:
             player_health, score = update_health_and_score(player_health, score, "health_potion")
             create_health_potion()
 
+        if any(detect_collision(player_pos, trap_pos, trap_size) for trap_pos in traps):
+            player_health, score = update_health_and_score(player_health, score, "trap")
+            create_trap()
+
+        if any(detect_collision(player_pos, treasure_pos, treasure_size) for treasure_pos in treasures):
+            player_health, score = update_health_and_score(player_health, score, "treasure")
+            create_treasure()
+
         player = pygame.draw.rect(window, BLUE, (player_pos[0], player_pos[1], player_size, player_size))
         companion = pygame.draw.rect(window, YELLOW, (companion_pos[0], companion_pos[1], companion_size, companion_size))
 
@@ -188,6 +241,15 @@ while not game_over:
 
         for health_potion_pos in health_potions:
             pygame.draw.rect(window, WHITE, (health_potion_pos[0], health_potion_pos[1], health_potion_size, health_potion_size))
+
+        for trap_pos in traps:
+            pygame.draw.rect(window, BROWN, (trap_pos[0], trap_pos[1], trap_size, trap_size))
+
+        for treasure_pos in treasures:
+            pygame.draw.rect(window, YELLOW, (treasure_pos[0], treasure_pos[1], treasure_size, treasure_size))
+
+        for obstacle_pos in obstacles:
+            pygame.draw.rect(window, WHITE, (obstacle_pos[0], obstacle_pos[1], obstacle_size, obstacle_size))
 
         health_text = font.render("Health: {}".format(player_health), True, WHITE)
         window.blit(health_text, (10, 10))

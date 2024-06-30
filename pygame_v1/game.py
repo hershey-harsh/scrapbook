@@ -2,7 +2,7 @@ class Game:
     def __init__(self):
         self.current_room = None
         self.is_playing = True
-        self.inventory = []
+        self.player = Player()
 
     def start(self):
         print("Welcome to the Adventure Game!")
@@ -14,18 +14,23 @@ class Game:
         self.rooms = {
             'start': Room('Start Room', 'You are in a small room with a wooden door. There is a key here.'),
             'hallway': Room('Hallway', 'You are in a long hallway. There is a door at the end.'),
+            'kitchen': Room('Kitchen', 'You are in a kitchen. There is a knife on the table.'),
             'treasure': Room('Treasure Room', 'You found the treasure room! There is a chest here.')
         }
         self.rooms['start'].add_exit('north', self.rooms['hallway'])
         self.rooms['hallway'].add_exit('south', self.rooms['start'])
+        self.rooms['hallway'].add_exit('east', self.rooms['kitchen'])
         self.rooms['hallway'].add_exit('north', self.rooms['treasure'])
+        self.rooms['kitchen'].add_exit('west', self.rooms['hallway'])
         self.rooms['treasure'].add_exit('south', self.rooms['hallway'])
 
         key = Item('key', 'A small rusty key.')
         chest = Item('chest', 'A large wooden chest. It seems to be locked.')
+        knife = Item('knife', 'A sharp kitchen knife.')
 
         self.rooms['start'].add_item(key)
         self.rooms['treasure'].add_item(chest)
+        self.rooms['kitchen'].add_item(knife)
 
     def play(self):
         while self.is_playing:
@@ -51,15 +56,13 @@ class Game:
             item_name = command.split(' ')[1]
             item = self.current_room.get_item(item_name)
             if item:
-                self.inventory.append(item)
+                self.player.add_item(item)
                 self.current_room.remove_item(item)
                 print(f"You picked up the {item.name}.")
             else:
                 print("There's no such item here.")
         elif command == 'inventory':
-            print("You have the following items:")
-            for item in self.inventory:
-                print(f"- {item.name}")
+            self.player.show_inventory()
         elif command.startswith('use '):
             item_name = command.split(' ')[1]
             self.use_item(item_name)
@@ -67,15 +70,36 @@ class Game:
             print("I don't understand that command.")
 
     def use_item(self, item_name):
+        item = self.player.get_item(item_name)
+        if item:
+            if item.name == 'key' and self.current_room.name == 'Treasure Room':
+                print("You use the key to open the chest. You found the treasure! You win!")
+                self.is_playing = False
+            else:
+                print(f"You can't use the {item.name} here.")
+        else:
+            print(f"You don't have a {item_name}.")
+
+class Player:
+    def __init__(self):
+        self.inventory = []
+
+    def add_item(self, item):
+        self.inventory.append(item)
+
+    def get_item(self, name):
         for item in self.inventory:
-            if item.name == item_name:
-                if item.name == 'key' and self.current_room.name == 'Treasure Room':
-                    print("You use the key to open the chest. You found the treasure! You win!")
-                    self.is_playing = False
-                else:
-                    print(f"You can't use the {item.name} here.")
-                return
-        print(f"You don't have a {item_name}.")
+            if item.name == name:
+                return item
+        return None
+
+    def show_inventory(self):
+        if self.inventory:
+            print("You have the following items:")
+            for item in self.inventory:
+                print(f"- {item.name}: {item.description}")
+        else:
+            print("You have no items.")
 
 class Room:
     def __init__(self, name, description):

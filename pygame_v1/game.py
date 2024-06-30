@@ -1,4 +1,5 @@
 import pickle
+import random
 
 class Game:
     def __init__(self):
@@ -23,7 +24,8 @@ class Game:
             'kitchen': Room('Kitchen', 'You are in a kitchen. There is a knife on the table.'),
             'library': Room('Library', 'You are in a library. There are many books on the shelves.'),
             'treasure': Room('Treasure Room', 'You found the treasure room! There is a chest here.'),
-            'locked_room': Room('Locked Room', 'This room is locked. You need a key to enter.', locked=True, key_required='key')
+            'locked_room': Room('Locked Room', 'This room is locked. You need a key to enter.', locked=True, key_required='key'),
+            'dark_room': Room('Dark Room', 'It is pitch black. You need a torch to see anything.', dark=True)
         }
         self.rooms['start'].add_exit('north', self.rooms['hallway'])
         self.rooms['hallway'].add_exit('south', self.rooms['start'])
@@ -31,6 +33,7 @@ class Game:
         self.rooms['hallway'].add_exit('west', self.rooms['library'])
         self.rooms['hallway'].add_exit('north', self.rooms['treasure'])
         self.rooms['hallway'].add_exit('east', self.rooms['locked_room'])
+        self.rooms['hallway'].add_exit('west', self.rooms['dark_room'])
         self.rooms['kitchen'].add_exit('west', self.rooms['hallway'])
         self.rooms['library'].add_exit('east', self.rooms['hallway'])
         self.rooms['treasure'].add_exit('south', self.rooms['hallway'])
@@ -66,6 +69,12 @@ class Game:
     def play(self):
         while self.is_playing:
             print(self.current_room.description)
+            if self.current_room.dark and not self.player.has_item('torch'):
+                print("It is too dark to see anything. You need a torch.")
+                command = input("> ").strip().lower()
+                self.process_command(command)
+                continue
+
             if self.current_room.locked:
                 if self.player.has_item(self.current_room.key_required):
                     print("You use the key to unlock the room.")
@@ -74,6 +83,7 @@ class Game:
                     print("The room is locked. You need a key to enter.")
                     self.current_room = self.rooms['hallway']
                     continue
+
             if self.current_room.items:
                 print("You see the following items:")
                 for item in self.current_room.items:
@@ -134,6 +144,8 @@ class Game:
             self.save_game()
         elif command == 'load':
             self.load_game()
+        elif command == 'map':
+            self.show_map()
         else:
             print("I don't understand that command.")
 
@@ -192,6 +204,11 @@ class Game:
             game = pickle.load(f)
         print("Game loaded successfully.")
 
+    def show_map(self):
+        print("Map of the game:")
+        for room_name, room in self.rooms.items():
+            print(f"{room_name}: {room.description}")
+
 class Player:
     def __init__(self):
         self.inventory = []
@@ -199,9 +216,13 @@ class Player:
         self.max_health = 100
         self.attack_power = 10
         self.quests = []
+        self.inventory_limit = 5
 
     def add_item(self, item):
-        self.inventory.append(item)
+        if len(self.inventory) < self.inventory_limit:
+            self.inventory.append(item)
+        else:
+            print("Your inventory is full. You can't carry any more items.")
 
     def get_item(self, name):
         for item in self.inventory:
@@ -239,13 +260,14 @@ class Player:
             print("You have no quests.")
 
 class Room:
-    def __init__(self, name, description, locked=False, key_required=None):
+    def __init__(self, name, description, locked=False, key_required=None, dark=False):
         self.name = name
         self.description = description
         self.exits = {}
         self.items = []
         self.locked = locked
         self.key_required = key_required
+        self.dark = dark
 
     def add_exit(self, direction, room):
         self.exits[direction] = room

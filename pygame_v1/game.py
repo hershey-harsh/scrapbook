@@ -1,3 +1,5 @@
+import pickle
+
 class Game:
     def __init__(self):
         self.current_room = None
@@ -21,7 +23,7 @@ class Game:
             'kitchen': Room('Kitchen', 'You are in a kitchen. There is a knife on the table.'),
             'library': Room('Library', 'You are in a library. There are many books on the shelves.'),
             'treasure': Room('Treasure Room', 'You found the treasure room! There is a chest here.'),
-            'locked_room': Room('Locked Room', 'This room is locked. You need a key to enter.', locked=True)
+            'locked_room': Room('Locked Room', 'This room is locked. You need a key to enter.', locked=True, key_required='key')
         }
         self.rooms['start'].add_exit('north', self.rooms['hallway'])
         self.rooms['hallway'].add_exit('south', self.rooms['start'])
@@ -38,23 +40,28 @@ class Game:
         knife = Item('knife', 'A sharp kitchen knife.')
         book = Item('book', 'A mysterious book with strange symbols.')
         potion = Item('potion', 'A healing potion that restores health.')
+        torch = Item('torch', 'A torch to light up dark areas.')
 
         self.rooms['start'].add_item(key)
         self.rooms['treasure'].add_item(chest)
         self.rooms['kitchen'].add_item(knife)
         self.rooms['library'].add_item(book)
         self.rooms['kitchen'].add_item(potion)
+        self.rooms['hallway'].add_item(torch)
 
     def create_enemies(self):
-        goblin = Enemy('Goblin', 30, 5)
-        troll = Enemy('Troll', 50, 10)
+        goblin = Enemy('Goblin', 30, 5, [Item('gold', 'A small amount of gold.')])
+        troll = Enemy('Troll', 50, 10, [Item('club', 'A heavy wooden club.')])
         self.enemies['library'] = goblin
         self.enemies['locked_room'] = troll
 
     def create_quests(self):
-        quest = Quest('Find the Key', 'Find the key to unlock the locked room.', 'key', 'locked_room')
-        self.quests.append(quest)
-        self.player.assign_quest(quest)
+        quest1 = Quest('Find the Key', 'Find the key to unlock the locked room.', 'key', 'locked_room')
+        quest2 = Quest('Defeat the Goblin', 'Defeat the goblin in the library.', 'Goblin', 'library', type='enemy')
+        self.quests.append(quest1)
+        self.quests.append(quest2)
+        self.player.assign_quest(quest1)
+        self.player.assign_quest(quest2)
 
     def play(self):
         while self.is_playing:
@@ -81,6 +88,9 @@ class Game:
                     self.is_playing = False
                     return
                 else:
+                    loot = enemy.loot
+                    for item in loot:
+                        self.current_room.add_item(item)
                     del self.enemies[self.current_room.name]
             command = input("> ").strip().lower()
             self.process_command(command)
@@ -112,11 +122,18 @@ class Game:
         elif command.startswith('inspect '):
             item_name = command.split(' ')[1]
             self.inspect_item(item_name)
-        elif command.startswith('quests'):
+        elif command == 'quests':
             self.player.show_quests()
         elif command.startswith('complete quest '):
             quest_name = command[len('complete quest '):]
             self.complete_quest(quest_name)
+        elif command.startswith('combine '):
+            items = command.split(' ')[1:]
+            self.combine_items(items)
+        elif command == 'save':
+            self.save_game()
+        elif command == 'load':
+            self.load_game()
         else:
             print("I don't understand that command.")
 
@@ -144,7 +161,7 @@ class Game:
 
     def complete_quest(self, quest_name):
         for quest in self.player.quests:
-            if quest.name == quest_name and quest.target_item in self.player.inventory:
+            if quest.name == quest_name and quest.target_item in [i.name for i in self.player.inventory]:
                 if self.current_room.name == quest.target_room:
                     print(f"You have completed the quest: {quest.name}")
                     self.player.quests.remove(quest)
@@ -152,6 +169,28 @@ class Game:
                     print("You are not in the correct room to complete this quest.")
                 return
         print(f"You haven't completed the quest: {quest_name}")
+
+    def combine_items(self, items):
+        item_objects = [self.player.get_item(item) for item in items]
+        if all(item_objects):
+            new_item = Item(' '.join(items), 'A combined item.')
+            for item in item_objects:
+                self.player.remove_item(item)
+            self.player.add_item(new_item)
+            print(f"You combined {', '.join(items)} into a new item: {new_item.name}")
+        else:
+            print("You don't have all the items to combine.")
+
+    def save_game(self):
+        with open('savegame.pkl', 'wb') as f:
+            pickle.dump(self, f)
+        print("Game saved successfully.")
+
+    def load_game(self):
+        global game
+        with open('savegame.pkl', 'rb') as f:
+            game = pickle.load(f)
+        print("Game loaded successfully.")
 
 class Player:
     def __init__(self):
@@ -188,5 +227,87 @@ class Player:
             print("You have no items.")
 
     def assign_quest(self, quest):
+        self.quests.append(quest)
+        print(f"New quest assigned: {quest.name}")
 
-# This is what I was able to do this hour. I was told it's fine to submit "incomplete" code and to submit whatever I have by the end of the hour.
+    def show_quests(self):
+        if self.quests:
+            print("You have the following quests:")
+            for quest in self.quests:
+                print(f"- {quest.name}: {quest.description}")
+        else:
+            print("You have no quests.")
+
+class Room:
+    def __init__(self, name, description, locked=False, key_required=None):
+        self.name = name
+        self.description = description
+        self.exits = {}
+        self.items = []
+        self.locked = locked
+        self.key_required = key_required
+
+    def add_exit(self, direction, room):
+        self.exits[direction] = room
+
+    def add_item(self, item):
+        self.items.append(item)
+
+    def remove_item(self, item):
+        self.items.remove(item)
+
+    def get_item(self, name):
+        for item in self.items:
+            if item.name == name:
+                return item
+        return None
+
+class Item:
+    def __init__(self, name, description):
+        self.name = name
+        self.description = description
+
+class Enemy:
+    def __init__(self, name, health, attack_power, loot):
+        self.name = name
+        self.health = health
+        self.attack_power = attack_power
+        self.loot = loot
+
+class Combat:
+    def __init__(self, player, enemy):
+        self.player = player
+        self.enemy = enemy
+
+    def start(self):
+        while self.player.health > 0 and self.enemy.health > 0:
+            print(f"Player Health: {self.player.health}, {self.enemy.name} Health: {self.enemy.health}")
+            action = input("Do you want to 'attack' or 'run'? ").strip().lower()
+            if action == 'attack':
+                self.enemy.health -= self.player.attack_power
+                print(f"You attack the {self.enemy.name}!")
+                if self.enemy.health <= 0:
+                    print(f"You defeated the {self.enemy.name}!")
+                    return
+                self.player.health -= self.enemy.attack_power
+                print(f"The {self.enemy.name} attacks you!")
+            elif action == 'run':
+                print("You run away!")
+                return
+            else:
+                print("Invalid action.")
+        if self.player.health <= 0:
+            print("You have been defeated!")
+
+class Quest:
+    def __init__(self, name, description, target_item, target_room, type='item'):
+        self.name = name
+        self.description = description
+        self.target_item = target_item
+        self.target_room = target_room
+        self.type = type
+
+if __name__ == "__main__":
+    game = Game()
+    game.start()
+    game.play()

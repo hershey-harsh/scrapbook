@@ -2,6 +2,7 @@ class Game:
     def __init__(self):
         self.current_room = None
         self.is_playing = True
+        self.inventory = []
 
     def start(self):
         print("Welcome to the Adventure Game!")
@@ -11,7 +12,7 @@ class Game:
 
     def create_rooms(self):
         self.rooms = {
-            'start': Room('Start Room', 'You are in a small room with a wooden door.'),
+            'start': Room('Start Room', 'You are in a small room with a wooden door. There is a key here.'),
             'hallway': Room('Hallway', 'You are in a long hallway. There is a door at the end.'),
             'treasure': Room('Treasure Room', 'You found the treasure room! There is a chest here.')
         }
@@ -20,9 +21,19 @@ class Game:
         self.rooms['hallway'].add_exit('north', self.rooms['treasure'])
         self.rooms['treasure'].add_exit('south', self.rooms['hallway'])
 
+        key = Item('key', 'A small rusty key.')
+        chest = Item('chest', 'A large wooden chest. It seems to be locked.')
+
+        self.rooms['start'].add_item(key)
+        self.rooms['treasure'].add_item(chest)
+
     def play(self):
         while self.is_playing:
             print(self.current_room.description)
+            if self.current_room.items:
+                print("You see the following items:")
+                for item in self.current_room.items:
+                    print(f"- {item.name}")
             command = input("> ").strip().lower()
             self.process_command(command)
 
@@ -30,19 +41,68 @@ class Game:
         if command in ['quit', 'exit']:
             self.is_playing = False
             print("Thanks for playing!")
-        elif command in self.current_room.exits:
-            self.current_room = self.current_room.exits[command]
+        elif command.startswith('go '):
+            direction = command.split(' ')[1]
+            if direction in self.current_room.exits:
+                self.current_room = self.current_room.exits[direction]
+            else:
+                print("You can't go that way.")
+        elif command.startswith('take '):
+            item_name = command.split(' ')[1]
+            item = self.current_room.get_item(item_name)
+            if item:
+                self.inventory.append(item)
+                self.current_room.remove_item(item)
+                print(f"You picked up the {item.name}.")
+            else:
+                print("There's no such item here.")
+        elif command == 'inventory':
+            print("You have the following items:")
+            for item in self.inventory:
+                print(f"- {item.name}")
+        elif command.startswith('use '):
+            item_name = command.split(' ')[1]
+            self.use_item(item_name)
         else:
-            print("You can't go that way.")
+            print("I don't understand that command.")
+
+    def use_item(self, item_name):
+        for item in self.inventory:
+            if item.name == item_name:
+                if item.name == 'key' and self.current_room.name == 'Treasure Room':
+                    print("You use the key to open the chest. You found the treasure! You win!")
+                    self.is_playing = False
+                else:
+                    print(f"You can't use the {item.name} here.")
+                return
+        print(f"You don't have a {item_name}.")
 
 class Room:
     def __init__(self, name, description):
         self.name = name
         self.description = description
         self.exits = {}
+        self.items = []
 
     def add_exit(self, direction, room):
         self.exits[direction] = room
+
+    def add_item(self, item):
+        self.items.append(item)
+
+    def remove_item(self, item):
+        self.items.remove(item)
+
+    def get_item(self, name):
+        for item in self.items:
+            if item.name == name:
+                return item
+        return None
+
+class Item:
+    def __init__(self, name, description):
+        self.name = name
+        self.description = description
 
 if __name__ == "__main__":
     game = Game()

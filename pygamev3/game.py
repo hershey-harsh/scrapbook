@@ -1,6 +1,7 @@
 import pygame
 import time
 import random
+import os
 
 pygame.init()
 
@@ -13,7 +14,6 @@ blue = (50, 153, 213)
 
 dis_width = 800
 dis_height = 600
-
 dis = pygame.display.set_mode((dis_width, dis_height))
 pygame.display.set_caption('Snake Game')
 
@@ -24,8 +24,23 @@ snake_speed = 15
 font_style = pygame.font.SysFont("bahnschrift", 25)
 score_font = pygame.font.SysFont("comicsansms", 35)
 
-def score_display(score):
-    value = score_font.render("Your Score: " + str(score), True, white)
+eat_sound = pygame.mixer.Sound('eat_sound.wav')
+game_over_sound = pygame.mixer.Sound('game_over.wav')
+
+def check_high_score(score):
+    if not os.path.exists('high_score.txt'):
+        with open('high_score.txt', 'w') as f:
+            f.write('0')
+    with open('high_score.txt', 'r') as f:
+        high_score = int(f.read())
+    if score > high_score:
+        with open('high_score.txt', 'w') as f:
+            f.write(str(score))
+        return score
+    return high_score
+
+def score_display(score, high_score):
+    value = score_font.render("Score: " + str(score) + " High Score: " + str(high_score), True, white)
     dis.blit(value, [0, 0])
 
 def our_snake(snake_block, snake_List):
@@ -42,7 +57,6 @@ def gameLoop():
 
     x1 = dis_width / 2
     y1 = dis_height / 2
-
     x1_change = 0
     y1_change = 0
 
@@ -53,16 +67,16 @@ def gameLoop():
     foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
 
     score = 0
+    high_score = check_high_score(score)
 
     pygame.mixer.music.load('background.mp3')
     pygame.mixer.music.play(-1)
 
     while not game_over:
-
         while game_close == True:
             dis.fill(blue)
             message("You Lost! Press Q-Quit or C-Play Again", red)
-            message(f"Your Score: {score}", white, 50)
+            message(f"Score: {score} High Score: {high_score}", white, 50)
             pygame.display.update()
             pygame.mixer.music.stop()
 
@@ -90,8 +104,17 @@ def gameLoop():
                 elif event.key == pygame.K_DOWN:
                     y1_change = snake_block
                     x1_change = 0
+                elif event.key == pygame.K_p:
+                    pause = True
+                    while pause:
+                        message("Paused. Press any key to continue.", red)
+                        pygame.display.update()
+                        for event in pygame.event.get():
+                            if event.type == pygame.KEYDOWN:
+                                pause = False
 
         if x1 >= dis_width or x1 < 0 or y1 >= dis_height or y1 < 0:
+            pygame.mixer.Sound.play(game_over_sound)
             game_close = True
         x1 += x1_change
         y1 += y1_change
@@ -106,17 +129,20 @@ def gameLoop():
 
         for x in snake_List[:-1]:
             if x == snake_Head:
+                pygame.mixer.Sound.play(game_over_sound)
                 game_close = True
 
         our_snake(snake_block, snake_List)
-        score_display(Length_of_snake - 1)
+        score_display(score, high_score)
         pygame.display.update()
 
         if x1 == foodx and y1 == foody:
+            pygame.mixer.Sound.play(eat_sound)
             foodx = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
             foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
             Length_of_snake += 1
             score += 1
+            high_score = check_high_score(score)
             if score % 5 == 0:
                 snake_speed += 1
 

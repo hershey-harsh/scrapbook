@@ -1,376 +1,113 @@
-import pickle
+import pygame
+import time
 import random
 
-class Game:
-    def __init__(self):
-        self.current_room = None
-        self.is_playing = True
-        self.player = Player()
-        self.enemies = {}
-        self.quests = []
-        self.npcs = {}
+pygame.init()
 
-    def start(self):
-        print("Welcome to the Adventure Game!")
-        self.is_playing = True
-        self.create_rooms()
-        self.create_enemies()
-        self.create_npcs()
-        self.create_quests()
-        self.current_room = self.rooms['start']
+white = (255, 255, 255)
+yellow = (255, 255, 102)
+black = (0, 0, 0)
+red = (213, 50, 80)
+green = (0, 255, 0)
+blue = (50, 153, 213)
 
-    def create_rooms(self):
-        self.rooms = {
-            'start': Room('Start Room', 'You are in a small room with a wooden door. There is a key here.'),
-            'hallway': Room('Hallway', 'You are in a long hallway. There is a door at the end.'),
-            'kitchen': Room('Kitchen', 'You are in a kitchen. There is a knife on the table.'),
-            'library': Room('Library', 'You are in a library. There are many books on the shelves.'),
-            'treasure': Room('Treasure Room', 'You found the treasure room! There is a chest here.'),
-            'locked_room': Room('Locked Room', 'This room is locked. You need a key to enter.', locked=True, key_required='key'),
-            'dark_room': Room('Dark Room', 'It is pitch black. You need a torch to see anything.', dark=True),
-            'trap_room': Room('Trap Room', 'This room is filled with traps. Proceed with caution.')
-        }
-        self.rooms['start'].add_exit('north', self.rooms['hallway'])
-        self.rooms['hallway'].add_exit('south', self.rooms['start'])
-        self.rooms['hallway'].add_exit('east', self.rooms['kitchen'])
-        self.rooms['hallway'].add_exit('west', self.rooms['library'])
-        self.rooms['hallway'].add_exit('north', self.rooms['treasure'])
-        self.rooms['hallway'].add_exit('east', self.rooms['locked_room'])
-        self.rooms['hallway'].add_exit('west', self.rooms['dark_room'])
-        self.rooms['hallway'].add_exit('south', self.rooms['trap_room'])
-        self.rooms['kitchen'].add_exit('west', self.rooms['hallway'])
-        self.rooms['library'].add_exit('east', self.rooms['hallway'])
-        self.rooms['treasure'].add_exit('south', self.rooms['hallway'])
+dis_width = 800
+dis_height = 600
 
-        key = Item('key', 'A small rusty key.')
-        chest = Item('chest', 'A large wooden chest. It seems to be locked.')
-        knife = Item('knife', 'A sharp kitchen knife.')
-        book = Item('book', 'A mysterious book with strange symbols.')
-        potion = Item('potion', 'A healing potion that restores health.')
-        torch = Item('torch', 'A torch to light up dark areas.')
+dis = pygame.display.set_mode((dis_width, dis_height))
+pygame.display.set_caption('Snake Game')
 
-        self.rooms['start'].add_item(key)
-        self.rooms['treasure'].add_item(chest)
-        self.rooms['kitchen'].add_item(knife)
-        self.rooms['library'].add_item(book)
-        self.rooms['kitchen'].add_item(potion)
-        self.rooms['hallway'].add_item(torch)
+clock = pygame.time.Clock()
+snake_block = 10
+snake_speed = 15
 
-    def create_enemies(self):
-        goblin = Enemy('Goblin', 30, 5, [Item('gold', 'A small amount of gold.')])
-        troll = Enemy('Troll', 50, 10, [Item('club', 'A heavy wooden club.')])
-        self.enemies['library'] = goblin
-        self.enemies['locked_room'] = troll
+font_style = pygame.font.SysFont("bahnschrift", 25)
+score_font = pygame.font.SysFont("comicsansms", 35)
 
-    def create_npcs(self):
-        guide = NPC('Guide', 'A friendly guide who provides helpful information.', [
-            Quest('Collect the Key', 'Find the key to unlock the locked room.', 'key', 'locked_room'),
-            Quest('Defeat the Goblin', 'Defeat the goblin in the library.', 'Goblin', 'library', type='enemy')
-        ])
-        self.npcs['hallway'] = guide
+def our_snake(snake_block, snake_List):
+    for x in snake_List:
+        pygame.draw.rect(dis, black, [x[0], x[1], snake_block, snake_block])
 
-    def create_quests(self):
-        quest1 = Quest('Find the Key', 'Find the key to unlock the locked room.', 'key', 'locked_room')
-        quest2 = Quest('Defeat the Goblin', 'Defeat the goblin in the library.', 'Goblin', 'library', type='enemy')
-        self.quests.append(quest1)
-        self.quests.append(quest2)
-        self.player.assign_quest(quest1)
-        self.player.assign_quest(quest2)
+def message(msg, color):
+    mesg = font_style.render(msg, True, color)
+    dis.blit(mesg, [dis_width / 6, dis_height / 3])
 
-    def play(self):
-        while self.is_playing:
-            print(self.current_room.description)
-            if self.current_room.dark and not self.player.has_item('torch'):
-                print("It is too dark to see anything. You need a torch.")
-                command = input("> ").strip().lower()
-                self.process_command(command)
-                continue
+def gameLoop():
+    game_over = False
+    game_close = False
 
-            if self.current_room.locked:
-                if self.player.has_item(self.current_room.key_required):
-                    print("You use the key to unlock the room.")
-                    self.current_room.locked = False
-                else:
-                    print("The room is locked. You need a key to enter.")
-                    self.current_room = self.rooms['hallway']
-                    continue
+    x1 = dis_width / 2
+    y1 = dis_height / 2
 
-            if self.current_room.name == 'trap_room':
-                self.handle_trap()
+    x1_change = 0
+    y1_change = 0
 
-            if self.current_room.items:
-                print("You see the following items:")
-                for item in self.current_room.items:
-                    print(f"- {item.name}")
-            if self.current_room.name in self.enemies:
-                enemy = self.enemies[self.current_room.name]
-                print(f"You encounter a {enemy.name}!")
-                combat = Combat(self.player, enemy)
-                combat.start()
-                if self.player.health <= 0:
-                    print("You have been defeated!")
-                    self.is_playing = False
-                    return
-                else:
-                    loot = enemy.loot
-                    for item in loot:
-                        self.current_room.add_item(item)
-                    del self.enemies[self.current_room.name]
-            if self.current_room.name in self.npcs:
-                npc = self.npcs[self.current_room.name]
-                print(f"You meet {npc.name}: {npc.description}")
-                npc.interact(self.player)
-            command = input("> ").strip().lower()
-            self.process_command(command)
+    snake_List = []
+    Length_of_snake = 1
 
-    def process_command(self, command):
-        if command in ['quit', 'exit']:
-            self.is_playing = False
-            print("Thanks for playing!")
-        elif command.startswith('go '):
-            direction = command.split(' ')[1]
-            if direction in self.current_room.exits:
-                self.current_room = self.current_room.exits[direction]
-            else:
-                print("You can't go that way.")
-        elif command.startswith('take '):
-            item_name = command.split(' ')[1]
-            item = self.current_room.get_item(item_name)
-            if item:
-                self.player.add_item(item)
-                self.current_room.remove_item(item)
-                print(f"You picked up the {item.name}.")
-            else:
-                print("There's no such item here.")
-        elif command == 'inventory':
-            self.player.show_inventory()
-        elif command.startswith('use '):
-            item_name = command.split(' ')[1]
-            self.use_item(item_name)
-        elif command.startswith('inspect '):
-            item_name = command.split(' ')[1]
-            self.inspect_item(item_name)
-        elif command == 'quests':
-            self.player.show_quests()
-        elif command.startswith('complete quest '):
-            quest_name = command[len('complete quest '):]
-            self.complete_quest(quest_name)
-        elif command.startswith('combine '):
-            items = command.split(' ')[1:]
-            self.combine_items(items)
-        elif command == 'save':
-            self.save_game()
-        elif command == 'load':
-            self.load_game()
-        elif command == 'map':
-            self.show_map()
-        elif command == 'status':
-            self.player.show_status()
-        else:
-            print("I don't understand that command.")
+    foodx = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
+    foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
 
-    def handle_trap(self):
-        damage = random.randint(5, 15)
-        self.player.health -= damage
-        print(f"You triggered a trap and took {damage} damage! Your health is now {self.player.health}.")
+    while not game_over:
 
-    def use_item(self, item_name):
-        item = self.player.get_item(item_name)
-        if item:
-            if item.name == 'key' and self.current_room.name == 'Treasure Room':
-                print("You use the key to open the chest. You found the treasure! You win!")
-                self.is_playing = False
-            elif item.name == 'potion':
-                self.player.health = min(self.player.max_health, self.player.health + 20)
-                self.player.remove_item(item)
-                print("You used a potion and restored your health.")
-            else:
-                print(f"You can't use the {item.name} here.")
-        else:
-            print(f"You don't have a {item_name}.")
+        while game_close == True:
+            dis.fill(blue)
+            message("You Lost! Press Q-Quit or C-Play Again", red)
+            pygame.display.update()
 
-    def inspect_item(self, item_name):
-        item = self.player.get_item(item_name)
-        if item:
-            print(f"Inspecting {item.name}: {item.description}")
-        else:
-            print(f"You don't have a {item_name}.")
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        game_over = True
+                        game_close = False
+                    if event.key == pygame.K_c:
+                        gameLoop()
 
-    def complete_quest(self, quest_name):
-        for quest in self.player.quests:
-            if quest.name == quest_name and quest.target_item in [i.name for i in self.player.inventory]:
-                if self.current_room.name == quest.target_room:
-                    print(f"You have completed the quest: {quest.name}")
-                    self.player.quests.remove(quest)
-                else:
-                    print("You are not in the correct room to complete this quest.")
-                return
-        print(f"You haven't completed the quest: {quest_name}")
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                game_over = True
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    x1_change = -snake_block
+                    y1_change = 0
+                elif event.key == pygame.K_RIGHT:
+                    x1_change = snake_block
+                    y1_change = 0
+                elif event.key == pygame.K_UP:
+                    y1_change = -snake_block
+                    x1_change = 0
+                elif event.key == pygame.K_DOWN:
+                    y1_change = snake_block
+                    x1_change = 0
 
-    def combine_items(self, items):
-        item_objects = [self.player.get_item(item) for item in items]
-        if all(item_objects):
-            new_item = Item(' '.join(items), 'A combined item.')
-            for item in item_objects:
-                self.player.remove_item(item)
-            self.player.add_item(new_item)
-            print(f"You combined {', '.join(items)} into a new item: {new_item.name}")
-        else:
-            print("You don't have all the items to combine.")
+        if x1 >= dis_width or x1 < 0 or y1 >= dis_height or y1 < 0:
+            game_close = True
+        x1 += x1_change
+        y1 += y1_change
+        dis.fill(blue)
+        pygame.draw.rect(dis, green, [foodx, foody, snake_block, snake_block])
+        snake_Head = []
+        snake_Head.append(x1)
+        snake_Head.append(y1)
+        snake_List.append(snake_Head)
+        if len(snake_List) > Length_of_snake:
+            del snake_List[0]
 
-    def save_game(self):
-        with open('savegame.pkl', 'wb') as f:
-            pickle.dump(self, f)
-        print("Game saved successfully.")
+        for x in snake_List[:-1]:
+            if x == snake_Head:
+                game_close = True
 
-    def load_game(self):
-        global game
-        with open('savegame.pkl', 'rb') as f:
-            game = pickle.load(f)
-        print("Game loaded successfully.")
+        our_snake(snake_block, snake_List)
+        pygame.display.update()
 
-    def show_map(self):
-        print("Map of the game:")
-        for room_name, room in self.rooms.items():
-            print(f"{room_name}: {room.description}")
+        if x1 == foodx and y1 == foody:
+            foodx = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
+            foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
+            Length_of_snake += 1
 
-class Player:
-    def __init__(self):
-        self.inventory = []
-        self.health = 100
-        self.max_health = 100
-        self.attack_power = 10
-        self.quests = []
-        self.inventory_limit = 5
+        clock.tick(snake_speed)
 
-    def add_item(self, item):
-        if len(self.inventory) < self.inventory_limit:
-            self.inventory.append(item)
-        else:
-            print("Your inventory is full. You can't carry any more items.")
+    pygame.quit()
+    quit()
 
-    def get_item(self, name):
-        for item in self.inventory:
-            if item.name == name:
-                return item
-        return None
-
-    def has_item(self, name):
-        for item in self.inventory:
-            if item.name == name:
-                return True
-        return False
-
-    def remove_item(self, item):
-        self.inventory.remove(item)
-
-    def show_inventory(self):
-        if self.inventory:
-            print("You have the following items:")
-            for item in self.inventory:
-                print(f"- {item.name}: {item.description}")
-        else:
-            print("You have no items.")
-
-    def assign_quest(self, quest):
-        self.quests.append(quest)
-        print(f"New quest assigned: {quest.name}")
-
-    def show_quests(self):
-        if self.quests:
-            print("You have the following quests:")
-            for quest in self.quests:
-                print(f"- {quest.name}: {quest.description}")
-        else:
-            print("You have no quests.")
-
-    def show_status(self):
-        print(f"Health: {self.health}/{self.max_health}")
-        print(f"Attack Power: {self.attack_power}")
-
-class Room:
-    def __init__(self, name, description, locked=False, key_required=None, dark=False):
-        self.name = name
-        self.description = description
-        self.exits = {}
-        self.items = []
-        self.locked = locked
-        self.key_required = key_required
-        self.dark = dark
-
-    def add_exit(self, direction, room):
-        self.exits[direction] = room
-
-    def add_item(self, item):
-        self.items.append(item)
-
-    def remove_item(self, item):
-        self.items.remove(item)
-
-    def get_item(self, name):
-        for item in self.items:
-            if item.name == name:
-                return item
-        return None
-
-class Item:
-    def __init__(self, name, description):
-        self.name = name
-        self.description = description
-
-class Enemy:
-    def __init__(self, name, health, attack_power, loot):
-        self.name = name
-        self.health = health
-        self.attack_power = attack_power
-        self.loot = loot
-
-class NPC:
-    def __init__(self, name, description, quests):
-        self.name = name
-        self.description = description
-        self.quests = quests
-
-    def interact(self, player):
-        print(f"{self.name} says: 'Hello, traveler!'")
-        for quest in self.quests:
-            if quest not in player.quests:
-                player.assign_quest(quest)
-
-class Combat:
-    def __init__(self, player, enemy):
-        self.player = player
-        self.enemy = enemy
-
-    def start(self):
-        while self.player.health > 0 and self.enemy.health > 0:
-            print(f"Player Health: {self.player.health}, {self.enemy.name} Health: {self.enemy.health}")
-            action = input("Do you want to 'attack' or 'run'? ").strip().lower()
-            if action == 'attack':
-                self.enemy.health -= self.player.attack_power
-                print(f"You attack the {self.enemy.name}!")
-                if self.enemy.health <= 0:
-                    print(f"You defeated the {self.enemy.name}!")
-                    return
-                self.player.health -= self.enemy.attack_power
-                print(f"The {self.enemy.name} attacks you!")
-            elif action == 'run':
-                print("You run away!")
-                return
-            else:
-                print("Invalid action.")
-        if self.player.health <= 0:
-            print("You have been defeated!")
-
-class Quest:
-    def __init__(self, name, description, target_item, target_room, type='item'):
-        self.name = name
-        self.description = description
-        self.target_item = target_item
-        self.target_room = target_room
-        self.type = type
-
-if __name__ == "__main__":
-    game = Game()
-    game.start()
-    game.play()
+gameLoop()

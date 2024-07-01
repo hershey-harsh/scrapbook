@@ -20,6 +20,7 @@ pygame.display.set_caption('Snake Game')
 clock = pygame.time.Clock()
 snake_block = 10
 snake_speed = 15
+level = 1
 
 font_style = pygame.font.SysFont("bahnschrift", 25)
 score_font = pygame.font.SysFont("comicsansms", 35)
@@ -52,6 +53,7 @@ def message(msg, color, y_displace=0):
     dis.blit(mesg, [dis_width / 6, dis_height / 3 + y_displace])
 
 def gameLoop():
+    global snake_speed, level
     game_over = False
     game_close = False
 
@@ -107,11 +109,15 @@ def gameLoop():
                 elif event.key == pygame.K_p:
                     pause = True
                     while pause:
-                        message("Paused. Press any key to continue.", red)
+                        message("Paused. Press P to continue or Q to quit.", red)
                         pygame.display.update()
                         for event in pygame.event.get():
                             if event.type == pygame.KEYDOWN:
-                                pause = False
+                                if event.key == pygame.K_p:
+                                    pause = False
+                                elif event.key == pygame.K_q:
+                                    pygame.quit()
+                                    quit()
 
         if x1 >= dis_width or x1 < 0 or y1 >= dis_height or y1 < 0:
             pygame.mixer.Sound.play(game_over_sound)
@@ -144,7 +150,11 @@ def gameLoop():
             score += 1
             high_score = check_high_score(score)
             if score % 5 == 0:
+                level += 1
                 snake_speed += 1
+                message(f"Level Up! Welcome to Level {level}", green, 50)
+                pygame.display.update()
+                time.sleep(2)
 
         clock.tick(snake_speed)
 

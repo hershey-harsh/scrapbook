@@ -32,6 +32,10 @@ score_font = pygame.font.SysFont("comicsansms", 35)
 eat_sound = pygame.mixer.Sound('eat_sound.wav')
 game_over_sound = pygame.mixer.Sound('game_over.wav')
 power_up_sound = pygame.mixer.Sound('power_up.wav')
+shield_sound = pygame.mixer.Sound('shield_sound.wav')
+speed_boost_sound = pygame.mixer.Sound('speed_boost.wav')
+
+skins = {'default': (black, green), 'rainbow': [black, green, purple, orange]}
 
 def check_high_score(score):
     if not os.path.exists('high_score.txt'):
@@ -78,6 +82,11 @@ def gameLoop():
     multiplier = 1
     bonus_round = False
     bonus_start_time = 0
+    shield_active = False
+    shield_time = 0
+    speed_boost_active = False
+    speed_boost_time = 0
+    selected_skin = skins['rainbow']
 
     state = load_game()
     if state:
@@ -96,7 +105,7 @@ def gameLoop():
         obstacles = []
         power_up_active = False
         power_up_time = 0
-        colors = [black, green, purple, orange]
+        colors = selected_skin
         special_food_active = False
         special_food_time = 0
         special_food_bonus = 5
@@ -114,7 +123,7 @@ def gameLoop():
         if bonus_round and time.time() - bonus_start_time > 10:
             bonus_round = False
 
-        while game_close == True:
+        while game_close:
             dis.fill(blue)
             message("You Lost! Press Q-Quit, C-Play Again, or S-Save Game", red)
             message(f"Score: {score} High Score: {high_score}", white, 50)
@@ -173,37 +182,9 @@ def gameLoop():
                                     quit()
 
         if x1 >= dis_width or x1 < 0 or y1 >= dis_height or y1 < 0:
-            lives -= 1
-            if lives == 0:
-                pygame.mixer.Sound.play(game_over_sound)
-                game_close = True
+            if shield_active:
+                shield_active = False
             else:
-                x1 = dis_width / 2
-                y1 = dis_height / 2
-                x1_change = 0
-                y1_change = 0
-                snake_List = []
-                Length_of_snake = 1
-                foodx = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
-                foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
-                power_up_active = False
-                power_up_time = 0
-                special_food_active = False
-                special_food_time = 0
-
-        x1 += x1_change
-        y1 += y1_change
-        dis.fill(blue)
-        pygame.draw.rect(dis, green, [foodx, foody, snake_block, snake_block])
-        snake_Head = []
-        snake_Head.append(x1)
-        snake_Head.append(y1)
-        snake_List.append(snake_Head)
-        if len(snake_List) > Length_of_snake:
-            del snake_List[0]
-
-        for x in snake_List[:-1]:
-            if x == snake_Head:
                 lives -= 1
                 if lives == 0:
                     pygame.mixer.Sound.play(game_over_sound)
@@ -221,6 +202,40 @@ def gameLoop():
                     power_up_time = 0
                     special_food_active = False
                     special_food_time = 0
+
+        x1 += x1_change
+        y1 += y1_change
+        dis.fill(blue)
+        pygame.draw.rect(dis, green, [foodx, foody, snake_block, snake_block])
+        snake_Head = []
+        snake_Head.append(x1)
+        snake_Head.append(y1)
+        snake_List.append(snake_Head)
+        if len(snake_List) > Length_of_snake:
+            del snake_List[0]
+
+        for x in snake_List[:-1]:
+            if x == snake_Head:
+                if shield_active:
+                    shield_active = False
+                else:
+                    lives -= 1
+                    if lives == 0:
+                        pygame.mixer.Sound.play(game_over_sound)
+                        game_close = True
+                    else:
+                        x1 = dis_width / 2
+                        y1 = dis_height / 2
+                        x1_change = 0
+                        y1_change = 0
+                        snake_List = []
+                        Length_of_snake = 1
+                        foodx = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
+                        foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
+                        power_up_active = False
+                        power_up_time = 0
+                        special_food_active = False
+                        special_food_time = 0
 
         our_snake(snake_block, snake_List, colors)
         score_display(score, high_score, level, lives, game_time)
@@ -285,27 +300,57 @@ def gameLoop():
                 score += 2
                 high_score = check_high_score(score)
 
+        if random.random() < 0.01:
+            shield_x = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
+            shield_y = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
+            pygame.draw.rect(dis, blue, [shield_x, shield_y, snake_block, snake_block])
+            if x1 == shield_x and y1 == shield_y:
+                pygame.mixer.Sound.play(shield_sound)
+                shield_active = True
+                shield_time = time.time()
+
+        if time.time() - shield_time > 10:
+            shield_active = False
+
+        if random.random() < 0.01:
+            speed_boost_x = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
+            speed_boost_y = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
+            pygame.draw.rect(dis, purple, [speed_boost_x, speed_boost_y, snake_block, snake_block])
+            if x1 == speed_boost_x and y1 == speed_boost_y:
+                pygame.mixer.Sound.play(speed_boost_sound)
+                speed_boost_active = True
+                snake_speed += 5
+                speed_boost_time = time.time()
+
+        if time.time() - speed_boost_time > 5:
+            if speed_boost_active:
+                snake_speed -= 5
+                speed_boost_active = False
+
         for obs in obstacles:
             obs[0] += random.choice([-1, 1]) * snake_block
             obs[1] += random.choice([-1, 1]) * snake_block
             if x1 == obs[0] and y1 == obs[1]:
-                lives -= 1
-                if lives == 0:
-                    pygame.mixer.Sound.play(game_over_sound)
-                    game_close = True
+                if shield_active:
+                    shield_active = False
                 else:
-                    x1 = dis_width / 2
-                    y1 = dis_height / 2
-                    x1_change = 0
-                    y1_change = 0
-                    snake_List = []
-                    Length_of_snake = 1
-                    foodx = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
-                    foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
-                    power_up_active = False
-                    power_up_time = 0
-                    special_food_active = False
-                    special_food_time = 0
+                    lives -= 1
+                    if lives == 0:
+                        pygame.mixer.Sound.play(game_over_sound)
+                        game_close = True
+                    else:
+                        x1 = dis_width / 2
+                        y1 = dis_height / 2
+                        x1_change = 0
+                        y1_change = 0
+                        snake_List = []
+                        Length_of_snake = 1
+                        foodx = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
+                        foody = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
+                        power_up_active = False
+                        power_up_time = 0
+                        special_food_active = False
+                        special_food_time = 0
 
         clock.tick(snake_speed)
 

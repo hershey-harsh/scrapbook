@@ -15,7 +15,7 @@ blue = (50, 153, 213)
 dis_width = 800
 dis_height = 600
 dis = pygame.display.set_mode((dis_width, dis_height))
-pygame.display.set_caption('Snake Game')
+pygame.display.setCaption('Snake Game')
 
 clock = pygame.time.Clock()
 snake_block = 10
@@ -27,6 +27,7 @@ score_font = pygame.font.SysFont("comicsansms", 35)
 
 eat_sound = pygame.mixer.Sound('eat_sound.wav')
 game_over_sound = pygame.mixer.Sound('game_over.wav')
+power_up_sound = pygame.mixer.Sound('power_up.wav')
 
 def check_high_score(score):
     if not os.path.exists('high_score.txt'):
@@ -40,8 +41,8 @@ def check_high_score(score):
         return score
     return high_score
 
-def score_display(score, high_score):
-    value = score_font.render("Score: " + str(score) + " High Score: " + str(high_score), True, white)
+def score_display(score, high_score, level):
+    value = score_font.render(f"Score: {score} High Score: {high_score} Level: {level}", True, white)
     dis.blit(value, [0, 0])
 
 def our_snake(snake_block, snake_List):
@@ -51,6 +52,10 @@ def our_snake(snake_block, snake_List):
 def message(msg, color, y_displace=0):
     mesg = font_style.render(msg, True, color)
     dis.blit(mesg, [dis_width / 6, dis_height / 3 + y_displace])
+
+def draw_obstacles(obstacles):
+    for obs in obstacles:
+        pygame.draw.rect(dis, red, [obs[0], obs[1], snake_block, snake_block])
 
 def gameLoop():
     global snake_speed, level
@@ -70,6 +75,10 @@ def gameLoop():
 
     score = 0
     high_score = check_high_score(score)
+
+    obstacles = []
+    power_up_active = False
+    power_up_time = 0
 
     pygame.mixer.music.load('background.mp3')
     pygame.mixer.music.play(-1)
@@ -138,8 +147,14 @@ def gameLoop():
                 pygame.mixer.Sound.play(game_over_sound)
                 game_close = True
 
+        for obs in obstacles:
+            if x1 == obs[0] and y1 == obs[1]:
+                pygame.mixer.Sound.play(game_over_sound)
+                game_close = True
+
         our_snake(snake_block, snake_List)
-        score_display(score, high_score)
+        draw_obstacles(obstacles)
+        score_display(score, high_score, level)
         pygame.display.update()
 
         if x1 == foodx and y1 == foody:
@@ -155,6 +170,24 @@ def gameLoop():
                 message(f"Level Up! Welcome to Level {level}", green, 50)
                 pygame.display.update()
                 time.sleep(2)
+                if level % 2 == 0:
+                    obs_x = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
+                    obs_y = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
+                    obstacles.append([obs_x, obs_y])
+                if level % 3 == 0:
+                    power_up_active = True
+                    power_up_time = time.time()
+                    power_up_x = round(random.randrange(0, dis_width - snake_block) / 10.0) * 10.0
+                    power_up_y = round(random.randrange(0, dis_height - snake_block) / 10.0) * 10.0
+
+        if power_up_active:
+            pygame.draw.rect(dis, yellow, [power_up_x, power_up_y, snake_block, snake_block])
+            if x1 == power_up_x and y1 == power_up_y:
+                pygame.mixer.Sound.play(power_up_sound)
+                snake_speed -= 3
+                power_up_active = False
+            if time.time() - power_up_time > 10:
+                power_up_active = False
 
         clock.tick(snake_speed)
 
